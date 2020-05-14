@@ -16,6 +16,9 @@ When I built QrSync, it was only meant to send files from a terminal to a mobile
 found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took some ideas from it and 
 implemented also the possibility to copy file from the mobile device to the computer running QrSync.
 
+### Dependencies
+QrSync depends on Rocket, which only builds against nightly >= 1.42.
+
 ### Install
 ```sh
 ❯❯❯ cargo install qrsync

@@ -8,6 +8,9 @@
 //! found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took some ideas from it and 
 //! implemented also the possibility to copy file from the mobile device to the computer running QrSync.
 //!
+//! ### Dependencies
+//! QrSync depends on Rocket, which only builds against nightly >= 1.42.
+//!
 //! ### Operational modes
 //! QrSync can run in two mode, depending on command line options:
 //! * Send mode: this mode is selected when a file is passed to the command line. QrSync will
