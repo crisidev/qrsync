@@ -1,0 +1,32 @@
+[package]
+name = "qrsync"
+version = "0.1.0"
+authors = ["Bigo <bigo@crisidev.org>"]
+description = "Utility to copy files over WiFi to/from mobile devices inside a terminal."
+documentation = "https://docs.rs/qrsync"
+readme = "README.md"
+homepage = "https://github.com/crisidev/qrsync"
+repository = "https://github.com/crisidev/qrsync"
+license-file = "LICENCE"
+keywords = ["qrcode", "terminal", "rocket", "mobile"]
+categories = ["command-line-utilities", "multimedia"]
+edition = "2018"
+
+[dependencies]
+get_if_addrs = "0.5"
+log = "0.4"
+pnet = "0.26"
+pretty_env_logger = "0.4"
+qr2term = "0.2"
+rocket = "0.4.4"
+rocket-multipart-form-data = "0.8"
+signal-hook = "0.1"
+
+[dependencies.clap]
+version = "~3.0.0-beta.1"
+features = [ "suggestions", "color" ]
+
+[dependencies.rocket_contrib]
+version = "0.4.4"
+default-features = false
+features = ["tera_templates"]
