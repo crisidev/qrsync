@@ -7,6 +7,7 @@
 Utility to copy files over WiFi to/from mobile devices inside a terminal. 
 
 - [Install](#install)
+- [Dependencies](#dependencies)
 - [Operational modes](#operational-modes)
 - [Command line options](#command-line-options)
 - [Acknowledgement](#acknowledgement)
