@@ -11,7 +11,7 @@ Utility to copy files over WiFi to/from mobile devices inside a terminal.
 - [Operational modes](#operational-modes)
 - [Command line options](#command-line-options)
 - [Acknowledgement](#acknowledgement)
-- [Licence](#licence)
+- [License](#license)
 
 When I built QrSync, it was only meant to send files from a terminal to a mobile device, then I
 found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took some ideas from it and 
@@ -76,5 +76,5 @@ use.
 * [qr2term](https://docs.rs/qr2term/): Terminal based QR rendering library.
 * [clap](https://clap.rs/): Oh man, where do I start telling how much do I love Clap?
 
-### Licence
-See [LICENCE](https://github.com/crisidev/qrsync/blob/master/LICENSE) file.
+### License
+See [LICENSE](https://github.com/crisidev/qrsync/blob/master/LICENSE) file.
