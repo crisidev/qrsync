@@ -1,7 +1,7 @@
 ## QrSync
 [![Crates.io](https://img.shields.io/crates/v/qrsync)](https://crates.io/crates/qrsync)
 [![Crates.io](https://img.shields.io/crates/d/qrsync)](https://crates.io/crates/qrsync)
-[![Documentation](https://docs.rs/qrsync/badge.svg)](https://doc.rs/qrsync)
+[![Documentation](https://docs.rs/qrsync/badge.svg)](https://docs.rs/qrsync)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/crisidev/qrsync/blob/master/LICENSE)
 
 Utility to copy files over WiFi to/from mobile devices inside a terminal. 
