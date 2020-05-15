@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 use rocket::http::ContentType;
 use rocket::response::content::{Css, Html, Plain};
-use rocket::response::status::NotFound;
 use rocket::response::{NamedFile, Redirect};
 use rocket::response::{Responder, Result as RocketResult};
 use rocket::{Data, Request, State};
@@ -13,7 +12,7 @@ use rocket_multipart_form_data::{
     Repetition,
 };
 
-use crate::utils::copy_file;
+use crate::utils::{copy_file, sanitize_file_name};
 
 const POST_HTML: &str = include_str!("templates/post.html");
 const DONE_HTML: &str = include_str!("templates/done.html");
@@ -36,12 +35,18 @@ impl RequestCtx {
     }
 }
 
-/// Serve GET /send URL returning the file served from Rocket.
-#[get("/send")]
-pub fn get_send(state: State<RequestCtx>) -> Option<NamedFile> {
+/// Serve GET /<file_name> URL returning the file served from Rocket.
+#[get("/<file_name>")]
+pub fn get_send(file_name: String, state: State<RequestCtx>) -> Result<NamedFile, Redirect> {
     match state.filename.as_ref() {
-        Some(filename) => NamedFile::open(Path::new(filename)).ok(),
-        None => None,
+        Some(filename) => {
+            if file_name == sanitize_file_name(filename) {
+                Ok(NamedFile::open(Path::new(filename)).unwrap())
+            } else {
+                Err(Redirect::found("/error"))
+            }
+        }
+        None => Err(Redirect::found("/error")),
     }
 }
 
@@ -57,14 +62,16 @@ pub fn get_done(_state: State<RequestCtx>) -> Html<String> {
     Html(DONE_HTML.to_string())
 }
 
+/// Serve GET /error URL where we redirect upon errors,
+#[get("/error")]
+pub fn get_error(_state: State<RequestCtx>) -> Html<String> {
+    Html(ERROR_HTML.to_string())
+}
+
 /// Serve POST /receive URL parsing the multipart form. This way multiple files with different
 /// names can be received in a single session.
 #[post("/receive", format = "multipart/form-data", data = "<data>")]
-pub fn post_receive(
-    content_type: &ContentType,
-    data: Data,
-    state: State<RequestCtx>,
-) -> Result<Redirect, NotFound<String>> {
+pub fn post_receive(content_type: &ContentType, data: Data, state: State<RequestCtx>) -> Redirect {
     let mut options = MultipartFormDataOptions::new();
     options
         .allowed_fields
@@ -74,33 +81,40 @@ pub fn post_receive(
             .content_type_by_string(Some(mime::TEXT_PLAIN))
             .unwrap(),
     );
-    let multipart_form_data = MultipartFormData::parse(content_type, data, options).unwrap();
-    let files = multipart_form_data.files.get("binary-files");
-    let mut file_vec = Vec::new();
-    if let Some(files) = files {
-        match files {
-            FileField::Single(data) => file_vec.push(data),
-            FileField::Multiple(datas) => file_vec.extend(datas.iter()),
-        }
-    }
-    let file = multipart_form_data.files.get("text-file");
-    if let Some(file) = file {
-        match file {
-            FileField::Single(data) => file_vec.push(data),
-            FileField::Multiple(datas) => file_vec.extend(datas.iter()),
-        }
-    }
-    for file in file_vec.iter() {
-        let content_type = file.content_type.as_ref().unwrap_or(&mime::TEXT_PLAIN);
-        let file_name = file.file_name.as_ref();
-        if let Some(file_name) = file_name {
-            if !file_name.is_empty() {
-                let file_path = state.root_dir.join(file_name);
-                copy_file(file_name, content_type, &file.path, &file_path);
+    match MultipartFormData::parse(content_type, data, options) {
+        Ok(multipart_form_data) => {
+            let files = multipart_form_data.files.get("binary-files");
+            let mut file_vec = Vec::new();
+            if let Some(files) = files {
+                match files {
+                    FileField::Single(data) => file_vec.push(data),
+                    FileField::Multiple(datas) => file_vec.extend(datas.iter()),
+                }
             }
+            let file = multipart_form_data.files.get("text-file");
+            if let Some(file) = file {
+                match file {
+                    FileField::Single(data) => file_vec.push(data),
+                    FileField::Multiple(datas) => file_vec.extend(datas.iter()),
+                }
+            }
+            for file in file_vec.iter() {
+                let content_type = file.content_type.as_ref().unwrap_or(&mime::TEXT_PLAIN);
+                let file_name = file.file_name.as_ref();
+                if let Some(file_name) = file_name {
+                    if !file_name.is_empty() {
+                        let file_path = state.root_dir.join(file_name);
+                        copy_file(file_name, content_type, &file.path, &file_path);
+                    }
+                }
+            }
+            Redirect::found("/receive_done")
+        }
+        Err(e) => {
+            error!("Unable to parse multipart form data: {}", e);
+            Redirect::found("/error")
         }
     }
-    Ok(Redirect::found("/receive_done"))
 }
 
 /// Serve Bootstrap minimized CSS as static file.
@@ -119,6 +133,12 @@ pub fn static_bootstrap_css_map(_state: State<RequestCtx>) -> Plain<String> {
 #[get("/favicon.ico", format = "image/webp")]
 pub fn static_favicon(_state: State<RequestCtx>) -> Plain<String> {
     Plain("hi".to_string())
+}
+
+/// Rickroll curious cats :)
+#[get("/")]
+pub fn slash(_state: State<RequestCtx>) -> Redirect {
+    Redirect::found("https://www.youtube.com/watch?v=oHg5SJYRHA0")
 }
 
 /// Catch all for HTTP Rocket errors.

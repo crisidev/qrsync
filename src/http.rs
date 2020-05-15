@@ -11,13 +11,14 @@ use rocket::Catcher;
 
 use crate::error::QrSyncError;
 use crate::routes::{
-    bad_request, static_rocket_route_info_for_get_done, static_rocket_route_info_for_get_receive,
-    static_rocket_route_info_for_get_send, static_rocket_route_info_for_post_receive,
+    bad_request, static_rocket_route_info_for_get_done, static_rocket_route_info_for_get_error,
+    static_rocket_route_info_for_get_receive, static_rocket_route_info_for_get_send,
+    static_rocket_route_info_for_post_receive, static_rocket_route_info_for_slash,
     static_rocket_route_info_for_static_bootstrap_css,
     static_rocket_route_info_for_static_bootstrap_css_map,
     static_rocket_route_info_for_static_favicon, RequestCtx,
 };
-use crate::utils::ResultOrError;
+use crate::utils::{sanitize_file_name, ResultOrError};
 
 /// Main structure implementing the workflow if sending and receving files between devices.
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
@@ -102,17 +103,23 @@ impl QrSyncHttp {
     fn generate_qr_code(&self) -> ResultOrError<()> {
         let url: String;
         if self.filename.is_some() {
+            let filename = self.filename.as_ref().unwrap();
             info!(
                 "Send mode enabled for file {}",
-                fs::canonicalize(self.filename.as_ref().unwrap())?.to_string_lossy()
+                fs::canonicalize(filename)?.to_string_lossy()
             );
-            url = format!("http://{}:{}/send", self.ip_address, self.port)
+            url = format!(
+                "http://{}:{}/{}",
+                self.ip_address,
+                self.port,
+                sanitize_file_name(filename)
+            );
         } else {
             info!(
                 "Receive mode enabled inside directory {}",
                 fs::canonicalize(&self.root_dir)?.to_string_lossy()
             );
-            url = format!("http://{}:{}/receive", self.ip_address, self.port)
+            url = format!("http://{}:{}/receive", self.ip_address, self.port);
         };
         info!(
             "Scan this QR code with a QR code reader app to open the URL {}",
@@ -149,6 +156,8 @@ impl QrSyncHttp {
             .mount(
                 "/",
                 routes![
+                    slash,
+                    get_error,
                     get_send,
                     get_receive,
                     get_done,

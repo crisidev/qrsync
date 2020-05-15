@@ -5,6 +5,8 @@ use rocket::config::ConfigError;
 use std::fmt;
 use std::io::Error as IoError;
 use std::net::AddrParseError;
+use rocket_multipart_form_data::mime::FromStrError;
+use rocket_multipart_form_data::MultipartFormDataError;
 
 /// Generic QrSync error structure, implementing all error types coming from dependencies.
 #[derive(Debug, PartialEq)]
@@ -60,6 +62,24 @@ impl From<IoError> for QrSyncError {
     fn from(error: IoError) -> Self {
         QrSyncError {
             kind: String::from("io"),
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<FromStrError> for QrSyncError {
+    fn from(error: FromStrError) -> Self {
+        QrSyncError {
+            kind: String::from("multipart-form"),
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<MultipartFormDataError> for QrSyncError {
+    fn from(error: MultipartFormDataError) -> Self {
+        QrSyncError {
+            kind: String::from("multipart-form"),
             message: error.to_string(),
         }
     }

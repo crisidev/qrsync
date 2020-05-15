@@ -1,0 +1,9 @@
+sudo: false
+language: rust
+cache: cargo
+rust:
+  - nightly
+script: |
+  cargo build &&
+  cargo test &&
+  cargo doc
