@@ -18,7 +18,7 @@ use crate::routes::{
     static_rocket_route_info_for_static_bootstrap_css_map,
     static_rocket_route_info_for_static_favicon, RequestCtx,
 };
-use crate::utils::{sanitize_file_name, ResultOrError};
+use crate::utils::ResultOrError;
 
 /// Main structure implementing the workflow if sending and receving files between devices.
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
@@ -112,7 +112,7 @@ impl QrSyncHttp {
                 "http://{}:{}/{}",
                 self.ip_address,
                 self.port,
-                sanitize_file_name(filename)
+                base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
             );
         } else {
             info!(

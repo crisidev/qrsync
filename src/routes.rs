@@ -1,6 +1,7 @@
 //! Rocket routes definitions.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::str;
 
 use rocket::http::ContentType;
 use rocket::response::content::{Css, Html, Plain};
@@ -12,7 +13,7 @@ use rocket_multipart_form_data::{
     Repetition,
 };
 
-use crate::utils::{copy_file, sanitize_file_name};
+use crate::utils::copy_file;
 
 const POST_HTML: &str = include_str!("templates/post.html");
 const DONE_HTML: &str = include_str!("templates/done.html");
@@ -35,37 +36,44 @@ impl RequestCtx {
     }
 }
 
-/// Serve GET /<file_name> URL returning the file served from Rocket.
-#[get("/<file_name>")]
-pub fn get_send(file_name: String, state: State<RequestCtx>) -> Result<NamedFile, Redirect> {
+/// Serve GET /<filename> URL returning the file served from Rocket.
+#[get("/<filename>")]
+pub fn get_send(filename: String, state: State<RequestCtx>) -> Result<NamedFile, Redirect> {
     match state.filename.as_ref() {
-        Some(filename) => {
-            if file_name == sanitize_file_name(filename) {
-                Ok(NamedFile::open(Path::new(filename)).unwrap())
-            } else {
+        Some(stored_filename) => match base64::decode_config(&filename, base64::URL_SAFE_NO_PAD) {
+            Ok(filename) => match str::from_utf8(&filename) {
+                Ok(filename) => {
+                    if stored_filename == filename {
+                        match NamedFile::open(&filename) {
+                            Ok(data) => Ok(data),
+                            Err(e) => {
+                                error!("Unable to serve file {}: {}", stored_filename, e);
+                                Err(Redirect::found("/error"))
+                            }
+                        }
+                    } else {
+                        error!(
+                            "Requested file {} differs from served one {}",
+                            filename, stored_filename
+                        );
+                        Err(Redirect::found("/error"))
+                    }
+                }
+                Err(e) => {
+                    error!("Unable to decode base64 URL to UTF-8: {}", e);
+                    Err(Redirect::found("/error"))
+                }
+            },
+            Err(e) => {
+                error!("Unable to decode URL from base64 {}: {}", filename, e);
                 Err(Redirect::found("/error"))
             }
+        },
+        None => {
+            error!("QrSync is not running in send mode");
+            Err(Redirect::found("/error"))
         }
-        None => Err(Redirect::found("/error")),
     }
-}
-
-/// Serve GET /receive URL where the user can input files and text to receive.
-#[get("/receive")]
-pub fn get_receive(_state: State<RequestCtx>) -> Html<String> {
-    Html(POST_HTML.to_string())
-}
-
-/// Serve GET /done URL where we redirect upon success.
-#[get("/receive_done")]
-pub fn get_done(_state: State<RequestCtx>) -> Html<String> {
-    Html(DONE_HTML.to_string())
-}
-
-/// Serve GET /error URL where we redirect upon errors,
-#[get("/error")]
-pub fn get_error(_state: State<RequestCtx>) -> Html<String> {
-    Html(ERROR_HTML.to_string())
 }
 
 /// Serve POST /receive URL parsing the multipart form. This way multiple files with different
@@ -115,6 +123,24 @@ pub fn post_receive(content_type: &ContentType, data: Data, state: State<Request
             Redirect::found("/error")
         }
     }
+}
+
+/// Serve GET /receive URL where the user can input files and text to receive.
+#[get("/receive")]
+pub fn get_receive(_state: State<RequestCtx>) -> Html<String> {
+    Html(POST_HTML.to_string())
+}
+
+/// Serve GET /done URL where we redirect upon success.
+#[get("/receive_done")]
+pub fn get_done(_state: State<RequestCtx>) -> Html<String> {
+    Html(DONE_HTML.to_string())
+}
+
+/// Serve GET /error URL where we redirect upon errors,
+#[get("/error")]
+pub fn get_error(_state: State<RequestCtx>) -> Html<String> {
+    Html(ERROR_HTML.to_string())
 }
 
 /// Serve Bootstrap minimized CSS as static file.

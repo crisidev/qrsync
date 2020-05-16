@@ -64,7 +64,3 @@ pub fn copy_file(file_name: &str, content_type: &Mime, src: &Path, dst: &Path) {
         ),
     }
 }
-
-pub fn sanitize_file_name(file_name: &str) -> String {
-    file_name.replace(" ", "-")
-}

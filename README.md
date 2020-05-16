@@ -31,15 +31,15 @@ QrSync has been tested on Linux and MacOSX. If you are interesting in having thi
 
 ### Operational modes
 QrSync can run in two mode, depending on command line options:
-* Send mode: this mode is selected when a file is passed to the command line. QrSync will
+* **Send mode:** this mode is selected when a file is passed to the command line. QrSync will
 generate a QR code on the terminal and start the HTTP server in send mode.
     Example:
     ```sh
     ❯❯❯ qrsync my_document.pdf
      INFO  qrsync::http > Send mode enabled for file /home/bigo/my_document.pdf
-     INFO  qrsync::http > Scan this QR code with a QR code reader app to open the URL http://192.168.1.11:5566/send
+     INFO  qrsync::http > Scan this QR code with a QR code reader app to open the URL http://192.168.1.11:5566/Q2FyZ28udG9tbA
     ```
-* Receive mode: this mode is selected if no file is passed to the command line. QrSync will
+* **Receive mode:** this mode is selected if no file is passed to the command line. QrSync will
 generate a QR code on the terminal and start the HTTP server in receive mode from the current
 folder. A specific folder to save received files can be specified with --root-dir command line
 option.

@@ -62,6 +62,7 @@
 //! * [qr2term](https://docs.rs/qr2term/): Terminal based QR rendering library.
 //! * [clap](https://clap.rs/): Oh man, where do I start telling how much do I love Clap?
 
+extern crate base64;
 extern crate clap;
 #[macro_use]
 extern crate log;
