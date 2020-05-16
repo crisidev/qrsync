@@ -2,11 +2,11 @@
 
 use qr2term::QrError;
 use rocket::config::ConfigError;
+use rocket_multipart_form_data::mime::FromStrError;
+use rocket_multipart_form_data::MultipartFormDataError;
 use std::fmt;
 use std::io::Error as IoError;
 use std::net::AddrParseError;
-use rocket_multipart_form_data::mime::FromStrError;
-use rocket_multipart_form_data::MultipartFormDataError;
 
 /// Generic QrSync error structure, implementing all error types coming from dependencies.
 #[derive(Debug, PartialEq)]

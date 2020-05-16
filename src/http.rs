@@ -23,12 +23,13 @@ use crate::utils::ResultOrError;
 /// Main structure implementing the workflow if sending and receving files between devices.
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
 pub struct QrSyncHttp {
-    ip_address: String,
+    ip_address: IpAddr,
     port: u16,
     filename: Option<String>,
     root_dir: PathBuf,
     workers: u16,
     light_term: bool,
+    ipv6: bool,
 }
 
 impl QrSyncHttp {
@@ -39,23 +40,27 @@ impl QrSyncHttp {
         root_dir: PathBuf,
         workers: u16,
         light_term: bool,
+        ipv6: bool,
     ) -> ResultOrError<Self> {
-        let ip_address = QrSyncHttp::find_public_ip(ip_address)?;
-        Ok(QrSyncHttp {
-            ip_address: ip_address.to_string(),
+        let mut qrsync = QrSyncHttp {
+            ip_address: "127.0.0.1".parse()?,
             port,
             filename,
             root_dir,
             workers,
             light_term,
-        })
+            ipv6,
+        };
+        qrsync.find_public_ip(ip_address)?;
+        Ok(qrsync)
     }
 
     /// Find the public IP by looping over all the available interfaces and finding a public
     /// routable interface with an IP address which can be reached from the outside.
-    fn find_public_ip(ip_address: Option<String>) -> ResultOrError<IpAddr> {
+    fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<()> {
         if ip_address.is_some() {
-            return Ok(ip_address.unwrap().parse()?);
+            self.ip_address = ip_address.unwrap().parse()?;
+            return Ok(());
         }
         let all_interfaces = datalink::interfaces();
         let default_interface = all_interfaces
@@ -64,24 +69,34 @@ impl QrSyncHttp {
 
         match default_interface {
             Some(interface) => {
-                if !interface.ips.is_empty() {
-                    let ipaddr = interface.ips[0].ip();
+                for ip in interface.ips.iter() {
+                    if self.ipv6 {
+                        if ip.is_ipv6() && ip.ip().is_global() {
+                            self.ip_address = ip.ip();
+                            break;
+                        }
+                    } else if ip.is_ipv4() {
+                        self.ip_address = ip.ip();
+                        break;
+                    }
+                }
+                if !self.ip_address.is_loopback() {
                     debug!(
                         "Found IP address {} for interface {}",
-                        ipaddr, interface.name
+                        self.ip_address, interface.name
                     );
-                    Ok(ipaddr)
+                    Ok(())
                 } else {
                     Err(QrSyncError::new(
-                        &format!("IP list for interface {} is empty", interface.name),
-                        Some("ip-discovery"),
+                        "Unable to find a valid IP address to bind with. See --ip-address option to specify the IP address to use", 
+                        Some("ip-discovery")
                     ))
                 }
-            }
+            },
             None => Err(QrSyncError::new(
-                "Unable to find default interface",
+                "Unable to find default interface. See --ip-address option to specify the IP address to use",
                 Some("ip-discovery"),
-            )),
+            ))
         }
     }
 
@@ -110,7 +125,7 @@ impl QrSyncHttp {
             );
             url = format!(
                 "http://{}:{}/{}",
-                self.ip_address,
+                self.ip_address.to_string(),
                 self.port,
                 base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
             );
@@ -119,7 +134,11 @@ impl QrSyncHttp {
                 "Receive mode enabled inside directory {}",
                 fs::canonicalize(&self.root_dir)?.to_string_lossy()
             );
-            url = format!("http://{}:{}/receive", self.ip_address, self.port);
+            url = format!(
+                "http://{}:{}/receive",
+                self.ip_address.to_string(),
+                self.port
+            );
         };
         info!(
             "Scan this QR code with a QR code reader app to open the URL {}",
@@ -146,7 +165,7 @@ impl QrSyncHttp {
     /// Configure rocket, print the QR code and run the HTTP worker.
     pub fn run(&self) -> ResultOrError<()> {
         let config = Config::build(Environment::Production)
-            .address(&self.ip_address)
+            .address(&self.ip_address.to_string())
             .port(self.port)
             .workers(self.workers)
             .finalize()?;

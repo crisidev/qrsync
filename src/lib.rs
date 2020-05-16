@@ -1,11 +1,11 @@
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(proc_macro_hygiene, decl_macro, ip)]
 #![forbid(unsafe_code)]
 
 //! ## QrSync
-//! Utility to copy files over WiFi to/from mobile devices inside a terminal. 
+//! Utility to copy files over WiFi to/from mobile devices inside a terminal.
 //!
 //! When I built QrSync, it was only meant to send files from a terminal to a mobile device, then I
-//! found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took some ideas from it and 
+//! found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took some ideas from it and
 //! implemented also the possibility to copy file from the mobile device to the computer running QrSync.
 //!
 //! ### Dependencies
@@ -36,17 +36,17 @@
 //! ```sh
 //! USAGE:
 //!     qrsync [FLAGS] [OPTIONS] [filename]
-//! 
+//!
 //! ARGS:
 //!     <filename>    File to be send to the mobile device
-//! 
+//!
 //! FLAGS:
 //!     -d, --debug           Enable QrSync debug
 //!     -h, --help            Prints help information
 //!     -l, --light-term      Draw QR in a terminal with light background
 //!         --rocket-debug    Enable Rocket framework debug
 //!     -V, --version         Prints version information
-//! 
+//!
 //! OPTIONS:
 //!     -i, --ip-address <ip-address>    IP address to bind the HTTP server to. Default to primary interface
 //!     -p, --port <port>                Port to bind the HTTP server to [default: 5566]
@@ -75,52 +75,7 @@ extern crate pnet;
 extern crate rocket_contrib;
 extern crate rocket_multipart_form_data;
 
-mod cmdline;
-mod error;
-mod http;
-mod routes;
-mod utils;
-
-use std::env;
-use std::path::Path;
-use std::process;
-
-use crate::cmdline::parse_command_line;
-use crate::http::QrSyncHttp;
-use crate::utils::{register_signal_handlers, setup_logging, ResultOrError};
-
-/// Parse command line flags, configure logging, register signal handlers and run QrSync.
-fn run() -> ResultOrError<()> {
-    let opts = parse_command_line();
-    setup_logging(opts.debug, opts.rocket_debug);
-    debug!("Command line options are {:#?}", opts);
-    register_signal_handlers();
-    let root_dir = match opts.root_dir {
-        Some(r) => Path::new(&r).to_path_buf(),
-        None => env::current_dir()?,
-    };
-    let http = QrSyncHttp::new(
-        opts.ip_address,
-        opts.port,
-        opts.filename,
-        root_dir,
-        opts.workers,
-        opts.light_term,
-    )?;
-    http.run()?;
-    Ok(())
-}
-
-/// The main!
-fn main() -> ! {
-    match run() {
-        Ok(_) => {
-            info!("QrSync run successfully");
-            process::exit(0);
-        }
-        Err(e) => {
-            error!("Error running QrSync: {}", e);
-            process::exit(1);
-        }
-    }
-}
+pub mod error;
+pub mod http;
+pub mod routes;
+pub mod utils;
