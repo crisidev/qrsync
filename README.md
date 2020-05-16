@@ -1,6 +1,7 @@
 ## QrSync
 [![Travis](https://img.shields.io/travis/crisidev/qrsync?style=for-the-badge)](https://travis-ci.org/github/crisidev/qrsync)
 [![Crates.io](https://img.shields.io/crates/v/qrsync?style=for-the-badge)](https://crates.io/crates/qrsync)
+[![Docs.rs](https://img.shields.io/badge/docs.rs-rustdoc-green?style=for-the-badge)](https://docs.rs/crate/qrsync)
 [![Crates.io](https://img.shields.io/crates/d/qrsync?style=for-the-badge)](https://crates.io/crates/qrsync)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/crisidev/qrsync/blob/master/LICENSE)
 
@@ -10,6 +11,7 @@ Utility to copy files over WiFi to/from mobile devices inside a terminal.
 - [Platform](#platform)
 - [Install](#install)
 - [Operational modes](#operational-modes)
+- [IPv6 support](#ipv6-support)
 - [Command line options](#command-line-options)
 - [Acknowledgement](#acknowledgement)
 - [License](#license)
@@ -50,6 +52,9 @@ option.
      INFO  qrsync::http > Scan this QR code with a QR code reader app to open the URL http://192.168.1.11:5566/receive
     ```
 
+### IPv6 support
+QrSync tries to guess which interface to use and which address to bind on the selected interface. In case you want to use IPv6, ensure you have a valid non link-local address and specify `--ipv6` command line argument. Remember, the IP address can be always overridden using `--ip-address` command line argument.
+
 ### Command line options
 ```sh
 USAGE:
@@ -61,8 +66,9 @@ ARGS:
 FLAGS:
     -d, --debug           Enable QrSync debug
     -h, --help            Prints help information
+    -6, --ipv6            Prefer IPv6 over IPv4
     -l, --light-term      Draw QR in a terminal with light background
-        --rocket-debug    Enable Rocket framework debug
+    -D, --rocket-debug    Enable Rocket framework debug
     -V, --version         Prints version information
 
 OPTIONS:
