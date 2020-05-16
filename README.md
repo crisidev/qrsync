@@ -6,8 +6,9 @@
 
 Utility to copy files over WiFi to/from mobile devices inside a terminal. 
 
-- [Install](#install)
 - [Dependencies](#dependencies)
+- [Platform](#platform)
+- [Install](#install)
 - [Operational modes](#operational-modes)
 - [Command line options](#command-line-options)
 - [Acknowledgement](#acknowledgement)
@@ -19,6 +20,9 @@ implemented also the possibility to copy file from the mobile device to the comp
 
 ### Dependencies
 QrSync depends on Rocket, which only builds against nightly >= 1.42.
+
+### Platform
+QrSync has been tested on Linux and MacOSX. If you are interesting in having this running on Windows, please see [this issue](https://github.com/crisidev/qrsync/issues/1).
 
 ### Install
 ```sh
