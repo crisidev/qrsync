@@ -49,17 +49,16 @@ pub fn register_signal_handlers() {
 /// Copy a file from a source to a destination. The file_name and content_type are used to produce
 /// nice errors.
 pub fn copy_file(file_name: &str, content_type: &Mime, src: &Path, dst: &Path) {
-    let dst_string = fs::canonicalize(dst).unwrap_or_default();
     match fs::copy(src, dst) {
         Ok(_) => info!(
             "Received file with content-type {} stored in {}",
             content_type,
-            dst_string.to_string_lossy()
+            dst.to_string_lossy()
         ),
         Err(e) => error!(
             "Unable to store file {} to {}: {}",
             file_name,
-            dst_string.to_string_lossy(),
+            dst.to_string_lossy(),
             e
         ),
     }
