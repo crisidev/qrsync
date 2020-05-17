@@ -13,7 +13,7 @@ matrix:
   include:
     # Linux
     - env: TARGET=x86_64-unknown-linux-gnu 
-    - env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
     - env: TARGET=aarch64-unknown-linux-gnu DISABLE_TESTS=1
     - env: TARGET=aarch64-unknown-linux-musl DISABLE_TESTS=1
     - env: TARGET=arm-unknown-linux-gnueabi DISABLE_TESTS=1
