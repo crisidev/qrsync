@@ -12,26 +12,19 @@ env:
 matrix:
   include:
     # Linux
+    - env: TARGET=x86_64-unknown-linux-gnu 
+    - env: TARGET=x86_64-unknown-linux-gnu
     - env: TARGET=aarch64-unknown-linux-gnu DISABLE_TESTS=1
     - env: TARGET=aarch64-unknown-linux-musl DISABLE_TESTS=1
     - env: TARGET=arm-unknown-linux-gnueabi DISABLE_TESTS=1
     - env: TARGET=armv7-unknown-linux-gnueabihf DISABLE_TESTS=1
-    - env: TARGET=i686-unknown-linux-gnu
-    - env: TARGET=i686-unknown-linux-musl
 
     # OSX
-    - env: TARGET=i686-apple-darwin
-      os: osx
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
-    # *BSD
-    - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
-
     # Windows
-    - env: TARGET=x86_64-pc-windows-gnu
+    - env: TARGET=x86_64-pc-windows-gnu DISABLE_TESTS=1
 
 before_install:
   - set -e
@@ -74,3 +67,9 @@ branches:
 notifications:
   email:
     on_success: never
+  irc:
+    channels:
+      - "chat.freenode.net#crisidev"
+    on_success: always # default: always
+    on_failure: always # default: always
+    use_notice: true

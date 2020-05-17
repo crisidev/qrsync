@@ -49,7 +49,7 @@ fn run() -> ResultOrError<()> {
     let opts = Opts::parse();
     setup_logging(opts.debug, opts.rocket_debug);
     debug!("Command line options are {:#?}", opts);
-    register_signal_handlers();
+    register_signal_handlers()?;
     let root_dir = match opts.root_dir {
         Some(r) => Path::new(&r).to_path_buf(),
         None => env::current_dir()?,

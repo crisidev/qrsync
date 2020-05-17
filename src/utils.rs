@@ -35,8 +35,12 @@ pub fn setup_logging(debug: bool, rocket_debug: bool) {
 }
 
 /// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
-pub fn register_signal_handlers() {
-    let signals = Signals::new(&[SIGTERM, SIGINT, SIGQUIT]).unwrap();
+pub fn register_signal_handlers() -> ResultOrError<()>{
+    let signals = if cfg!(windows) {
+        Signals::new(&[SIGTERM, SIGINT])?
+    } else {
+        Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?
+    };
     thread::spawn(move || {
         for sig in signals.forever() {
             warn!("Received signal {:#?}. Shutting down QrSync server", sig);
@@ -44,6 +48,7 @@ pub fn register_signal_handlers() {
         }
     });
     debug!("Registered signal handlers for SIGTERM, SIGINT, SIGQUIT");
+    Ok(())
 }
 
 /// Copy a file from a source to a destination. The file_name and content_type are used to produce
