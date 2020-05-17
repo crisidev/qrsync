@@ -16,7 +16,6 @@ edition = "2018"
 base64 = "0"
 ctrlc = { version = "3", features = ["termination"] }
 clap = "~3.0.0-beta.1"
-get_if_addrs = "0.5"
 log = "0.4"
 pnet = "0.26"
 pretty_env_logger = "0.4"
@@ -24,7 +23,6 @@ qr2term = "0.2"
 rocket = "0.4.4"
 rocket_contrib = "0.4.4"
 rocket-multipart-form-data = "0.8"
-signal-hook = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "0.6"

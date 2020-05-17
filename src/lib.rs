@@ -62,17 +62,16 @@
 //! * [qr2term](https://docs.rs/qr2term/): Terminal based QR rendering library.
 //! * [clap](https://clap.rs/): Oh man, where do I start telling how much do I love Clap?
 
-extern crate ctrlc;
 extern crate base64;
 extern crate clap;
+extern crate ctrlc;
 #[macro_use]
 extern crate log;
+extern crate pnet;
 extern crate pretty_env_logger;
 extern crate qr2term;
 #[macro_use]
 extern crate rocket;
-extern crate get_if_addrs;
-extern crate pnet;
 extern crate rocket_contrib;
 extern crate rocket_multipart_form_data;
 
