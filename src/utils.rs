@@ -2,10 +2,9 @@
 
 use log::LevelFilter;
 use rocket_multipart_form_data::mime::Mime;
-use signal_hook::{iterator::Signals, SIGINT, SIGQUIT, SIGTERM};
 use std::fs;
 use std::path::Path;
-use std::{process, thread};
+use std::process;
 
 use crate::error::QrSyncError;
 
@@ -35,19 +34,11 @@ pub fn setup_logging(debug: bool, rocket_debug: bool) {
 }
 
 /// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
-pub fn register_signal_handlers() -> ResultOrError<()>{
-    let signals = if cfg!(windows) {
-        Signals::new(&[SIGTERM, SIGINT])?
-    } else {
-        Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?
-    };
-    thread::spawn(move || {
-        for sig in signals.forever() {
-            warn!("Received signal {:#?}. Shutting down QrSync server", sig);
-            process::exit(0);
-        }
-    });
-    debug!("Registered signal handlers for SIGTERM, SIGINT, SIGQUIT");
+pub fn register_signal_handlers() -> ResultOrError<()> {
+    ctrlc::set_handler(move || {
+        warn!("Shutting down QrSync server");
+        process::exit(0);
+    })?;
     Ok(())
 }
 

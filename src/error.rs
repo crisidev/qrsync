@@ -1,5 +1,6 @@
 //! Definition and implementation of QrSync and dependencies errors.
 
+use ctrlc::Error as CtrlcError;
 use qr2term::QrError;
 use rocket::config::ConfigError;
 use rocket_multipart_form_data::mime::FromStrError;
@@ -80,6 +81,15 @@ impl From<MultipartFormDataError> for QrSyncError {
     fn from(error: MultipartFormDataError) -> Self {
         QrSyncError {
             kind: String::from("multipart-form"),
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<CtrlcError> for QrSyncError {
+    fn from(error: CtrlcError) -> Self {
+        QrSyncError {
+            kind: String::from("ctrlc"),
             message: error.to_string(),
         }
     }
