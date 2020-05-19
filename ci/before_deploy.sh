@@ -24,7 +24,7 @@ main() {
     cross rustc --bin "${qrsync}" --target "${TARGET}" --release
 
     # change binary name in case we are on windows
-    if [ "${TARGET}" == "x86_64-pc-windows-gnu" ]; then
+    if [ "${TARGET}" = "x86_64-pc-windows-gnu" ]; then
       qrsync="${qrsync}.exe"
     fi
     cp "target/${TARGET}/release/${qrsync}" "${stage}"/
