@@ -23,8 +23,7 @@ matrix:
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
-  # Windows
-  allow_failures:
+    # Windows
     - env: TARGET=x86_64-pc-windows-gnu DISABLE_TESTS=1
 
 before_install:

@@ -7,9 +7,9 @@
 
 Utility to copy files over WiFi to/from mobile devices inside a terminal. 
 
-- [Dependencies](#dependencies)
-- [Platform](#platform)
 - [Install](#install)
+- [Rust version](#rust-version)
+- [Platforms support](#platforms-support)
 - [Operational modes](#operational-modes)
 - [IPv6 support](#ipv6-support)
 - [Command line options](#command-line-options)
@@ -20,16 +20,29 @@ When I built QrSync, it was only meant to send files from a terminal to a mobile
 found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took some ideas from it and 
 implemented also the possibility to copy file from the mobile device to the computer running QrSync.
 
-### Dependencies
-QrSync depends on Rocket, which only builds against nightly >= 1.42.
-
-### Platform
-QrSync has been tested on Linux and MacOSX. If you are interesting in having this running on Windows, please see [this issue](https://github.com/crisidev/qrsync/issues/1).
-
 ### Install
+Travis-CI releases [binaries](https://github.com/crisidev/qrsync/releases) for various architectures when a new tag is pushed:
+* x84-64 Linux GNU
+* x86-64 Linux Musl
+* x86-64 Darwin
+* x86-64 Windows
+* aarch64 Linux GNU
+* aarch64 Linux Musl
+* arm Linux GNU
+* armv7 Linux GNU
+
+Alternatively you can install the latest tag directly from [crates.io](https://crates.io/crates/qrsync):
 ```sh
 ❯❯❯ cargo install qrsync
 ```
+
+### Rust version
+QrSync depends on Rocket, which only builds against nightly >= 1.42.
+
+### Platforms support
+QrSync has been tested on Linux and MacOSX. 
+
+It currently also build against Windows, but it has not being tested. On \*nix it uses [pnet](https://github.com/libpnet/libpnet) to auto discover the primary interface and its IP address and bind against it. Pnet have a some complex dependencies to build against Windows (see [here](https://github.com/libpnet/libpnet#windows) for more info), so on this platform QrSync makes the `--ip-address` command-line option mandatory and `pnet` is not built at all. 
 
 ### Operational modes
 QrSync can run in two mode, depending on command line options:

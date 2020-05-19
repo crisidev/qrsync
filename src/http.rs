@@ -4,6 +4,7 @@ use std::fs;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
+#[cfg(target_family = "unix")]
 use pnet::datalink;
 use qr2term::{qr, render};
 use rocket::config::{Config, Environment};
@@ -22,6 +23,7 @@ use crate::utils::ResultOrError;
 
 /// Main structure implementing the workflow if sending and receving files between devices.
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
+#[allow(dead_code)]
 pub struct QrSyncHttp {
     ip_address: IpAddr,
     port: u16,
@@ -57,6 +59,8 @@ impl QrSyncHttp {
 
     /// Find the public IP by looping over all the available interfaces and finding a public
     /// routable interface with an IP address which can be reached from the outside.
+    /// This method currently works only on *nix.
+    #[cfg(target_family = "unix")]
     fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<()> {
         if ip_address.is_some() {
             self.ip_address = ip_address.unwrap().parse()?;
@@ -98,6 +102,21 @@ impl QrSyncHttp {
                 Some("ip-discovery"),
             ))
         }
+    }
+
+    /// To have IP address autodiscovery on windows, the pnet crate have many dependencies, so we
+    /// make things easier for now by requiring the --ip-address command line option on this
+    /// platform.
+    /// This method currently works only on windows.
+    #[cfg(target_family = "windows")]
+    fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<()> {
+        match ip_address {
+            Some(ip_address) => {
+                self.ip_address = ip_address.parse()?;
+                Ok(())
+            },
+            None => Err(QrSyncError::new("On windows the command-line option --ip-address is mandatory", Some("ip-discovery")))
+        } 
     }
 
     /// Print the QR code to stdout on the terminal and generates white based QRs on dark terminals
