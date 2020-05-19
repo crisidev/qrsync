@@ -3,18 +3,21 @@
 set -ex
 
 main() {
-    cross build --target $TARGET --release
+    # build the target relase
+    cross build --target "${TARGET}" --release
 
-    if [ ! -z $DISABLE_TESTS ]; then
+    if [ ! -z "${DISABLE_TESTS}" ]; then
         return
     fi
 
-    cross test --target $TARGET --release
+    # run the tests
+    cross test --target "${TARGET}" --release
 
-    cross run --target $TARGET --release -- --help
+    # run the executable to ensure is has been built properly
+    cross run --target "${TARGET}" --release -- --version
 }
 
 # we don't run the "test phase" when doing deploys
-if [ -z $TRAVIS_TAG ]; then
+if [ -z "${TRAVIS_TAG}" ]; then
     main
 fi
