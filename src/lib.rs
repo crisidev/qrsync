@@ -37,4 +37,8 @@ extern crate rocket_multipart_form_data;
 pub mod error;
 pub mod http;
 pub mod routes;
-pub mod utils;
+
+use crate::error::QrSyncError;
+
+/// Handy type handling Result and Errors.
+pub type ResultOrError<T> = Result<T, QrSyncError>;

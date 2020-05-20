@@ -1,6 +1,7 @@
 //! Rocket routes definitions.
 
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::str;
 
 use rocket::http::ContentType;
@@ -8,12 +9,14 @@ use rocket::response::content::{Css, Html, Plain};
 use rocket::response::{Redirect, Responder, Result as RocketResult};
 use rocket::{Data, Request, State};
 use rocket_download_response::DownloadResponse;
+use rocket_multipart_form_data::mime::Mime;
 use rocket_multipart_form_data::{
     mime, FileField, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions,
     Repetition,
 };
 
-use crate::utils::copy_file;
+use crate::error::QrSyncError;
+use crate::ResultOrError;
 
 const POST_HTML: &str = include_str!("templates/post.html");
 const DONE_HTML: &str = include_str!("templates/done.html");
@@ -23,51 +26,76 @@ const BOOTSTRAP_CSS_MAP: &str = include_str!("templates/bootstrap.min.css.map");
 
 /// Request context structure, passed between Rocket handler to share state.
 pub struct RequestCtx {
-    filename: Option<String>,
+    file_name: Option<String>,
     root_dir: PathBuf,
 }
 
 impl RequestCtx {
-    pub fn new(filename: Option<String>, root_dir: &PathBuf) -> Self {
+    pub fn new(file_name: Option<String>, root_dir: &PathBuf) -> Self {
         RequestCtx {
-            filename,
+            file_name,
             root_dir: root_dir.to_path_buf(),
+        }
+    }
+
+    fn download_file(&self, file_name: String) -> ResultOrError<DownloadResponse> {
+        match &self.file_name {
+            Some(stored_filename) => {
+                let encoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)?;
+                let decoded_file_name = str::from_utf8(&encoded_file_name)?;
+                if stored_filename == decoded_file_name {
+                    let file_path = self.root_dir.join(stored_filename);
+                    Ok(DownloadResponse::from_file(
+                        file_path,
+                        Some(decoded_file_name),
+                        None,
+                    ))
+                } else {
+                    error!(
+                        "Requested file {} differs from served one {}",
+                        decoded_file_name, stored_filename
+                    );
+                    Err(QrSyncError::new(
+                        "QrSync is not running in send mode",
+                        Some("rocket"),
+                    ))
+                }
+            }
+            None => {
+                error!("QrSync is not running in send mode");
+                Err(QrSyncError::new(
+                    "QrSync is not running in send mode",
+                    Some("rocket"),
+                ))
+            }
+        }
+    }
+
+    /// Copy a file from a source to a destination. The file_name and content_type are used to produce
+    /// nice errors.
+    fn copy_file(&self, content_type: &Mime, src: &Path, dst: &Path) {
+        match fs::copy(src, dst) {
+            Ok(_) => info!(
+                "Received file with content-type {} stored in {}",
+                content_type,
+                dst.display()
+            ),
+            Err(e) => error!(
+                "Unable to store file {} to {}: {}",
+                self.file_name.as_ref().unwrap_or(&"unknown-file".to_string()),
+                dst.display(),
+                e
+            ),
         }
     }
 }
 
-/// Serve GET /<filename> URL returning the file served from Rocket.
-#[get("/<filename>")]
-pub fn get_send(filename: String, state: State<RequestCtx>) -> Result<DownloadResponse, Redirect> {
-    match state.filename.as_ref() {
-        Some(stored_filename) => match base64::decode_config(&filename, base64::URL_SAFE_NO_PAD) {
-            Ok(filename) => match str::from_utf8(&filename) {
-                Ok(filename) => {
-                    if stored_filename == filename {
-                        let file_path = state.root_dir.join(stored_filename);
-                        Ok(DownloadResponse::from_file(file_path, Some(filename), None))
-                    } else {
-                        error!(
-                            "Requested file {} differs from served one {}",
-                            filename, stored_filename
-                        );
-                        Err(Redirect::found("/error"))
-                    }
-                }
-                Err(e) => {
-                    error!("Unable to decode base64 URL to UTF-8: {}", e);
-                    Err(Redirect::found("/error"))
-                }
-            },
-            Err(e) => {
-                error!("Unable to decode URL from base64 {}: {}", filename, e);
-                Err(Redirect::found("/error"))
-            }
-        },
-        None => {
-            error!("QrSync is not running in send mode");
-            Err(Redirect::found("/error"))
-        }
+/// Serve GET /<file_name> URL returning the file served from Rocket.
+#[get("/<file_name>")]
+pub fn get_send(file_name: String, state: State<RequestCtx>) -> Result<DownloadResponse, Redirect> {
+    match state.download_file(file_name) {
+        Ok(data) => Ok(data),
+        Err(_) => Err(Redirect::found("/error")),
     }
 }
 
@@ -107,7 +135,7 @@ pub fn post_receive(content_type: &ContentType, data: Data, state: State<Request
                 if let Some(file_name) = file_name {
                     if !file_name.is_empty() {
                         let file_path = state.root_dir.join(file_name);
-                        copy_file(file_name, content_type, &file.path, &file_path);
+                        state.copy_file(content_type, &file.path, &file_path);
                     }
                 }
             }

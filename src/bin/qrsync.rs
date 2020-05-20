@@ -8,9 +8,9 @@ use std::path::Path;
 use std::process;
 
 use qrsync::http::QrSyncHttp;
-use qrsync::utils::{register_signal_handlers, setup_logging, ResultOrError};
-
+use qrsync::ResultOrError;
 use clap::Clap;
+use log::LevelFilter;
 
 /// Clap derived command line options.
 #[derive(Clap, Debug)]
@@ -42,6 +42,37 @@ struct Opts {
     /// Prefer IPv6 over IPv4.
     #[clap(short = "6", long = "ipv6")]
     ipv6: bool,
+}
+
+/// Setup logging, with different level configurations for QrSync and the rest of libraries used.
+fn setup_logging(debug: bool, rocket_debug: bool) {
+    let app_level = if debug {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    };
+    let rocket_level = if rocket_debug {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Error
+    };
+    pretty_env_logger::formatted_builder()
+        .filter(Some("qrsync"), app_level)
+        .filter(None, rocket_level)
+        .init();
+    debug!(
+        "QrSync log level: {}, Rocket log level: {}",
+        app_level, rocket_level
+    );
+}
+
+/// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
+fn register_signal_handlers() -> ResultOrError<()> {
+    ctrlc::set_handler(move || {
+        warn!("Shutting down QrSync server");
+        process::exit(0);
+    })?;
+    Ok(())
 }
 
 /// Parse command line flags, configure logging, register signal handlers and run QrSync.

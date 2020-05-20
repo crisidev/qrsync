@@ -19,7 +19,7 @@ use crate::routes::{
     static_rocket_route_info_for_static_bootstrap_css_map,
     static_rocket_route_info_for_static_favicon, RequestCtx,
 };
-use crate::utils::ResultOrError;
+use crate::ResultOrError;
 
 /// Main structure implementing the workflow if sending and receving files between devices.
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
@@ -114,9 +114,12 @@ impl QrSyncHttp {
             Some(ip_address) => {
                 self.ip_address = ip_address.parse()?;
                 Ok(())
-            },
-            None => Err(QrSyncError::new("On windows the command-line option --ip-address is mandatory", Some("ip-discovery")))
-        } 
+            }
+            None => Err(QrSyncError::new(
+                "On windows the command-line option --ip-address is mandatory",
+                Some("ip-discovery"),
+            )),
+        }
     }
 
     /// Print the QR code to stdout on the terminal and generates white based QRs on dark terminals
