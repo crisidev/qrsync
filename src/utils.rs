@@ -49,12 +49,12 @@ pub fn copy_file(file_name: &str, content_type: &Mime, src: &Path, dst: &Path) {
         Ok(_) => info!(
             "Received file with content-type {} stored in {}",
             content_type,
-            dst.to_string_lossy()
+            dst.display()
         ),
         Err(e) => error!(
             "Unable to store file {} to {}: {}",
             file_name,
-            dst.to_string_lossy(),
+            dst.display(),
             e
         ),
     }

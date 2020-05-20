@@ -140,7 +140,7 @@ impl QrSyncHttp {
             let filename = self.filename.as_ref().unwrap();
             info!(
                 "Send mode enabled for file {}",
-                fs::canonicalize(filename)?.to_string_lossy()
+                fs::canonicalize(filename)?.display()
             );
             url = format!(
                 "http://{}:{}/{}",
@@ -151,7 +151,7 @@ impl QrSyncHttp {
         } else {
             info!(
                 "Receive mode enabled inside directory {}",
-                fs::canonicalize(&self.root_dir)?.to_string_lossy()
+                fs::canonicalize(&self.root_dir)?.display()
             );
             url = format!(
                 "http://{}:{}/receive",

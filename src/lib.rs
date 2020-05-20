@@ -31,6 +31,7 @@ extern crate qr2term;
 #[macro_use]
 extern crate rocket;
 extern crate rocket_contrib;
+extern crate rocket_download_response;
 extern crate rocket_multipart_form_data;
 
 pub mod error;

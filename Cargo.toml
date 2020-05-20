@@ -1,6 +1,6 @@
 [package]
 name = "qrsync"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Matteo Bigoi <bigo@crisidev.org>"]
 description = "Utility to copy files over WiFi to/from mobile devices inside a terminal."
 documentation = "https://docs.rs/qrsync"
@@ -22,6 +22,7 @@ pretty_env_logger = "0.4"
 qr2term = "0.2"
 rocket = "0.4.4"
 rocket_contrib = "0.4.4"
+rocket-download-response = "0.4"
 rocket-multipart-form-data = "0.8"
 
 [dev-dependencies]

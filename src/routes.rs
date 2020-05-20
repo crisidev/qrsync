@@ -5,9 +5,9 @@ use std::str;
 
 use rocket::http::ContentType;
 use rocket::response::content::{Css, Html, Plain};
-use rocket::response::{NamedFile, Redirect};
-use rocket::response::{Responder, Result as RocketResult};
+use rocket::response::{Redirect, Responder, Result as RocketResult};
 use rocket::{Data, Request, State};
+use rocket_download_response::DownloadResponse;
 use rocket_multipart_form_data::{
     mime, FileField, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions,
     Repetition,
@@ -38,19 +38,14 @@ impl RequestCtx {
 
 /// Serve GET /<filename> URL returning the file served from Rocket.
 #[get("/<filename>")]
-pub fn get_send(filename: String, state: State<RequestCtx>) -> Result<NamedFile, Redirect> {
+pub fn get_send(filename: String, state: State<RequestCtx>) -> Result<DownloadResponse, Redirect> {
     match state.filename.as_ref() {
         Some(stored_filename) => match base64::decode_config(&filename, base64::URL_SAFE_NO_PAD) {
             Ok(filename) => match str::from_utf8(&filename) {
                 Ok(filename) => {
                     if stored_filename == filename {
-                        match NamedFile::open(&filename) {
-                            Ok(data) => Ok(data),
-                            Err(e) => {
-                                error!("Unable to serve file {}: {}", stored_filename, e);
-                                Err(Redirect::found("/error"))
-                            }
-                        }
+                        let file_path = state.root_dir.join(stored_filename);
+                        Ok(DownloadResponse::from_file(file_path, Some(filename), None))
                     } else {
                         error!(
                             "Requested file {} differs from served one {}",
