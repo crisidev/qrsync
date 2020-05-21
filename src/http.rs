@@ -108,9 +108,9 @@ impl QrSyncHttp {
     /// platform.
     /// This method currently works only on windows.
     #[cfg(target_family = "windows")]
-    fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<String> {
-        match ip_address {
-            Some(ip_address) => Ok(ip_address.parse()),
+    fn find_public_ip(&self) -> ResultOrError<String> {
+        match &self.ip_address {
+            Some(ip_address) => Ok(ip_address.to_string()),
             None => Err(QrSyncError::new(
                 "On windows the command-line option --ip-address is mandatory",
                 Some("ip-discovery"),
