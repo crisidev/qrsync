@@ -1,12 +1,13 @@
 //! QR code and HTTP worker handling.
 
 use std::fs;
-use std::net::IpAddr;
 use std::path::PathBuf;
 
 #[cfg(target_family = "unix")]
 use pnet::datalink;
-use qr2term::{qr, render};
+use qr2term::matrix::Matrix;
+use qr2term::qr::Qr;
+use qr2term::render::{Color, QrDark, QrLight, Renderer};
 use rocket::config::{Config, Environment};
 use rocket::Catcher;
 
@@ -25,7 +26,7 @@ use crate::ResultOrError;
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
 #[allow(dead_code)]
 pub struct QrSyncHttp {
-    ip_address: IpAddr,
+    ip_address: Option<String>,
     port: u16,
     filename: Option<String>,
     root_dir: PathBuf,
@@ -43,53 +44,51 @@ impl QrSyncHttp {
         workers: u16,
         light_term: bool,
         ipv6: bool,
-    ) -> ResultOrError<Self> {
-        let mut qrsync = QrSyncHttp {
-            ip_address: "127.0.0.1".parse()?,
+    ) -> Self {
+        QrSyncHttp {
+            ip_address,
             port,
             filename,
             root_dir,
             workers,
             light_term,
             ipv6,
-        };
-        qrsync.find_public_ip(ip_address)?;
-        Ok(qrsync)
+        }
     }
 
     /// Find the public IP by looping over all the available interfaces and finding a public
     /// routable interface with an IP address which can be reached from the outside.
     /// This method currently works only on *nix.
     #[cfg(target_family = "unix")]
-    fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<()> {
-        if ip_address.is_some() {
-            self.ip_address = ip_address.unwrap().parse()?;
-            return Ok(());
+    fn find_public_ip(&self) -> ResultOrError<String> {
+        if self.ip_address.is_some() {
+            return Ok(self.ip_address.as_ref().unwrap().to_string());
         }
         let all_interfaces = datalink::interfaces();
         let default_interface = all_interfaces
             .iter()
             .find(|e| e.is_up() && !e.is_loopback() && !e.ips.is_empty());
 
+        let mut ip_address = "127.0.0.1".parse()?;
         match default_interface {
             Some(interface) => {
                 for ip in interface.ips.iter() {
                     if self.ipv6 {
                         if ip.is_ipv6() && ip.ip().is_global() {
-                            self.ip_address = ip.ip();
+                            ip_address = ip.ip();
                             break;
                         }
                     } else if ip.is_ipv4() {
-                        self.ip_address = ip.ip();
+                        ip_address = ip.ip();
                         break;
                     }
                 }
-                if !self.ip_address.is_loopback() {
+                if !ip_address.is_loopback() {
                     debug!(
                         "Found IP address {} for interface {}",
-                        self.ip_address, interface.name
+                        ip_address, interface.name
                     );
-                    Ok(())
+                    Ok(ip_address.to_string())
                 } else {
                     Err(QrSyncError::new(
                         "Unable to find a valid IP address to bind with. See --ip-address option to specify the IP address to use", 
@@ -109,12 +108,9 @@ impl QrSyncHttp {
     /// platform.
     /// This method currently works only on windows.
     #[cfg(target_family = "windows")]
-    fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<()> {
+    fn find_public_ip(&mut self, ip_address: Option<String>) -> ResultOrError<String> {
         match ip_address {
-            Some(ip_address) => {
-                self.ip_address = ip_address.parse()?;
-                Ok(())
-            }
+            Some(ip_address) => Ok(ip_address.parse()),
             None => Err(QrSyncError::new(
                 "On windows the command-line option --ip-address is mandatory",
                 Some("ip-discovery"),
@@ -122,22 +118,9 @@ impl QrSyncHttp {
         }
     }
 
-    /// Print the QR code to stdout on the terminal and generates white based QRs on dark terminals
-    /// and black based QRs on light terminals.
-    fn print_qr_code(&self, data: &str) -> ResultOrError<()> {
-        let mut matrix = qr::Qr::from(data)?.to_matrix();
-        if self.light_term {
-            matrix.surround(2, render::QrDark);
-        } else {
-            matrix.surround(2, render::QrLight);
-        }
-        render::Renderer::default().print_stdout(&matrix);
-        Ok(())
-    }
-
     /// Generates the QR code based on the mode QrSync is started, giving the user a different URL
     /// in case we are expecting the mobile device to send to receive the file.
-    fn generate_qr_code(&self) -> ResultOrError<()> {
+    fn generate_qr_code_url(&self, ip_address: String) -> ResultOrError<String> {
         let url: String;
         if self.filename.is_some() {
             let filename = self.filename.as_ref().unwrap();
@@ -147,7 +130,7 @@ impl QrSyncHttp {
             );
             url = format!(
                 "http://{}:{}/{}",
-                self.ip_address.to_string(),
+                ip_address,
                 self.port,
                 base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
             );
@@ -156,18 +139,31 @@ impl QrSyncHttp {
                 "Receive mode enabled inside directory {}",
                 fs::canonicalize(&self.root_dir)?.display()
             );
-            url = format!(
-                "http://{}:{}/receive",
-                self.ip_address.to_string(),
-                self.port
-            );
+            url = format!("http://{}:{}/receive", ip_address, self.port);
         };
         info!(
             "Scan this QR code with a QR code reader app to open the URL {}",
             url
         );
-        self.print_qr_code(&url)?;
-        Ok(())
+        Ok(url)
+    }
+
+    /// Print the QR code to stdout on the terminal and generates white based QRs on dark terminals
+    /// and black based QRs on light terminals.
+    fn generate_qr_code_matrix(&self, data: &str) -> ResultOrError<Matrix<Color>> {
+        let mut matrix = Qr::from(data)?.to_matrix();
+        if self.light_term {
+            matrix.surround(2, QrDark);
+        } else {
+            matrix.surround(2, QrLight);
+        }
+        Ok(matrix)
+    }
+
+    fn print_qr_code(&self, ip_address: String) -> ResultOrError<()> {
+        let url = self.generate_qr_code_url(ip_address)?;
+        let qr = self.generate_qr_code_matrix(&url)?;
+        Ok(Renderer::default().print_stdout(&qr))
     }
 
     /// Build a list of Rocket::Catcher for any HTTP error Rocket supports to allow presenting a
@@ -186,13 +182,14 @@ impl QrSyncHttp {
 
     /// Configure rocket, print the QR code and run the HTTP worker.
     pub fn run(&self) -> ResultOrError<()> {
+        let ip_address = self.find_public_ip()?;
         let config = Config::build(Environment::Production)
-            .address(&self.ip_address.to_string())
+            .address(&ip_address.to_string())
             .port(self.port)
             .workers(self.workers)
             .finalize()?;
         let app = rocket::custom(config);
-        self.generate_qr_code()?;
+        self.print_qr_code(ip_address)?;
         let error = app
             .mount(
                 "/",
@@ -216,5 +213,153 @@ impl QrSyncHttp {
             &format!("Launch failed! Error: {}", error),
             Some("rocket-launch"),
         ))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
+
+    #[test]
+    fn test_find_public_ip_passing_ip_address() {
+        let ip_address = "10.0.0.1";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            Some("a-file".to_string()),
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        assert_eq!(http.find_public_ip().unwrap(), ip_address.to_string());
+    }
+
+    #[test]
+    fn test_find_public_ip_passing_autodetect() {
+        let http = QrSyncHttp::new(
+            None,
+            12345,
+            Some("a-file".to_string()),
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        assert_ne!(http.find_public_ip().unwrap(), "127.0.0.1".to_string());
+    }
+
+    #[test]
+    fn test_generate_qr_code_url_send_mode() {
+        let ip_address = "10.0.0.1";
+        let file_name = "a-file";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            Some(file_name.to_string()),
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        assert_eq!(
+            format!(
+                "http://{}:12345/{}",
+                ip_address,
+                base64::encode_config(file_name, base64::URL_SAFE_NO_PAD)
+            ),
+            url
+        );
+    }
+
+    #[test]
+    fn test_generate_qr_code_url_receive_mode() {
+        let ip_address = "10.0.0.1";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            None,
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        assert_eq!(format!("http://{}:12345/receive", ip_address,), url);
+    }
+
+    #[test]
+    fn test_generate_qr_code_matrix_dark() {
+        let ip_address = "10.0.0.1";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            None,
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        let qr = http.generate_qr_code_matrix(&url).unwrap();
+        assert_eq!(qr.pixels().len(), 1089);
+        let light_pixels = qr.pixels().iter().filter(|&n| *n == QrLight).count();
+        let dark_pixels = qr.pixels().iter().filter(|&n| *n == QrDark).count();
+        assert_eq!(light_pixels, 667);
+        assert_eq!(dark_pixels, 422);
+    }
+
+    #[test]
+    fn test_generate_qr_code_matrix_light() {
+        let ip_address = "10.0.0.1";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            None,
+            PathBuf::from("a-dir"),
+            1,
+            true,
+            false,
+        );
+        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        let qr = http.generate_qr_code_matrix(&url).unwrap();
+        assert_eq!(qr.pixels().len(), 1089);
+        let light_pixels = qr.pixels().iter().filter(|&n| *n == QrLight).count();
+        let dark_pixels = qr.pixels().iter().filter(|&n| *n == QrDark).count();
+        assert_eq!(light_pixels, 419);
+        assert_eq!(dark_pixels, 670);
+    }
+
+    #[test]
+    fn test_build_error_catcher() {
+        let ip_address = "10.0.0.1";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            None,
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        let catchers = http.build_error_catchers();
+        assert_eq!(catchers.len(), 29);
+    }
+
+    #[test]
+    fn test_print_qr_code() {
+        let ip_address = "10.0.0.1";
+        let http = QrSyncHttp::new(
+            Some(ip_address.to_string()),
+            12345,
+            None,
+            PathBuf::from("a-dir"),
+            1,
+            false,
+            false,
+        );
+        assert_eq!(http.print_qr_code(ip_address.to_string()).is_ok(), true);
     }
 }

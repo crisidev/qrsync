@@ -93,7 +93,7 @@ fn run() -> ResultOrError<()> {
         opts.workers,
         opts.light_term,
         opts.ipv6,
-    )?;
+    );
     http.run()?;
     Ok(())
 }
