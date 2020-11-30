@@ -19,28 +19,28 @@ struct Opts {
     /// File to be send to the mobile device.
     filename: Option<String>,
     /// Root directory to store files in receive mode.
-    #[clap(short = "r", long = "root-dir")]
+    #[clap(short = 'r', long = "root-dir")]
     root_dir: Option<String>,
     /// Enable QrSync debug.
-    #[clap(short = "d", long = "debug")]
+    #[clap(short = 'd', long = "debug")]
     debug: bool,
     /// Enable Rocket framework debug.
-    #[clap(short = "D", long = "rocket-debug")]
+    #[clap(short = 'D', long = "rocket-debug")]
     rocket_debug: bool,
     /// Port to bind the HTTP server to.
-    #[clap(short = "p", long = "port", default_value = "5566")]
+    #[clap(short = 'p', long = "port", default_value = "5566")]
     port: u16,
     /// IP address to bind the HTTP server to. Default to primary interface.
-    #[clap(short = "i", long = "ip-address")]
+    #[clap(short = 'i', long = "ip-address")]
     ip_address: Option<String>,
     /// Number of rocket workers.
-    #[clap(short = "w", long = "workers", default_value = "1")]
+    #[clap(short = 'w', long = "workers", default_value = "1")]
     workers: u16,
     /// Draw QR in a terminal with light background.
-    #[clap(short = "l", long = "light-term")]
+    #[clap(short = 'l', long = "light-term")]
     light_term: bool,
     /// Prefer IPv6 over IPv4.
-    #[clap(short = "6", long = "ipv6")]
+    #[clap(short = '6', long = "ipv6")]
     ipv6: bool,
 }
 
