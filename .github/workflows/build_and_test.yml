@@ -17,10 +17,10 @@ jobs:
     strategy:
       matrix:
         build:
-          - stable
+          - linux
           - macos
         include:
-          - build: stable
+          - build: linux
             os: ubuntu-18.04
             rust: nightly
           - build: macos
