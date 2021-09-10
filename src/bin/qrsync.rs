@@ -7,10 +7,10 @@ use std::env;
 use std::path::Path;
 use std::process;
 
-use qrsync::http::QrSyncHttp;
-use qrsync::ResultOrError;
 use clap::Clap;
 use log::LevelFilter;
+use qrsync::http::QrSyncHttp;
+use qrsync::ResultOrError;
 
 /// Clap derived command line options.
 #[derive(Clap, Debug)]

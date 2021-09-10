@@ -82,7 +82,9 @@ impl RequestCtx {
             ),
             Err(e) => error!(
                 "Unable to store file {} to {}: {}",
-                self.file_name.as_ref().unwrap_or(&"unknown-file".to_string()),
+                self.file_name
+                    .as_ref()
+                    .unwrap_or(&"unknown-file".to_string()),
                 dst.display(),
                 e
             ),

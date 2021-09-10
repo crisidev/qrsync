@@ -22,10 +22,10 @@ jobs:
         include:
           - build: stable
             os: ubuntu-18.04
-            rust: stable
+            rust: nightly
           - build: macos
             os: macos-latest
-            rust: stable
+            rust: nightly
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
