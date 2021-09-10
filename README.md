@@ -1,5 +1,6 @@
 ## QrSync
-[![Travis](https://img.shields.io/travis/crisidev/qrsync?style=for-the-badge)](https://travis-ci.org/github/crisidev/qrsync)
+[![Release](https://img.shields.io/github/workflow/status/crisidev/qrsync/release?style=for-the-badge)](https://github.com/crisidev/qrsync/actions?query=workflow%3Arelease)
+[![Ci](https://img.shields.io/github/workflow/status/crisidev/qrsync/ci?style=for-the-badge)](https://github.com/crisidev/qrsync/actions?query=workflow%3Aci)
 [![Crates.io](https://img.shields.io/crates/v/qrsync?style=for-the-badge)](https://crates.io/crates/qrsync)
 [![Docs.rs](https://img.shields.io/badge/docs.rs-rustdoc-green?style=for-the-badge)](https://docs.rs/crate/qrsync)
 [![Crates.io](https://img.shields.io/crates/d/qrsync?style=for-the-badge)](https://crates.io/crates/qrsync)
