@@ -22,14 +22,10 @@ found the amazing [qrcp](https://github.com/claudiodangelis/qrcp) and I took som
 implemented also the possibility to copy file from the mobile device to the computer running QrSync.
 
 ### Install
-Travis-CI releases [binaries](https://github.com/crisidev/qrsync/releases) for various architectures when a new tag is pushed:
+Github Actions releases [binaries](https://github.com/crisidev/qrsync/releases) for various architectures when a new tag is pushed:
 * x84-64 Linux GNU
-* x86-64 Linux Musl
 * x86-64 Darwin
-* x86-64 Windows
 * aarch64 Linux GNU
-* aarch64 Linux Musl
-* arm Linux GNU
 * armv7 Linux GNU
 
 Alternatively you can install the latest tag directly from [crates.io](https://crates.io/crates/qrsync):
