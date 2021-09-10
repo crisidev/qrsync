@@ -31,7 +31,7 @@ pub struct RequestCtx {
 }
 
 impl RequestCtx {
-    pub fn new(file_name: Option<String>, root_dir: &PathBuf) -> Self {
+    pub fn new(file_name: Option<String>, root_dir: &Path) -> Self {
         RequestCtx {
             file_name,
             root_dir: root_dir.to_path_buf(),

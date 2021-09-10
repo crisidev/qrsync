@@ -163,7 +163,8 @@ impl QrSyncHttp {
     fn print_qr_code(&self, ip_address: String) -> ResultOrError<()> {
         let url = self.generate_qr_code_url(ip_address)?;
         let qr = self.generate_qr_code_matrix(&url)?;
-        Ok(Renderer::default().print_stdout(&qr))
+        Renderer::default().print_stdout(&qr);
+        Ok(())
     }
 
     /// Build a list of Rocket::Catcher for any HTTP error Rocket supports to allow presenting a
@@ -184,7 +185,7 @@ impl QrSyncHttp {
     pub fn run(&self) -> ResultOrError<()> {
         let ip_address = self.find_public_ip()?;
         let config = Config::build(Environment::Production)
-            .address(&ip_address.to_string())
+            .address(&ip_address)
             .port(self.port)
             .workers(self.workers)
             .finalize()?;
