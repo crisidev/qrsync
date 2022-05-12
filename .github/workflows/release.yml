@@ -42,19 +42,19 @@ jobs:
         include:
           - build: linux glib amd64
             os: ubuntu-latest
-            rust: nightly
+            rust: stable
             target: x86_64-unknown-linux-gnu
           - build: linux glib arm7
             os: ubuntu-latest
-            rust: nightly
+            rust: stable
             target: armv7-unknown-linux-gnueabihf
           - build: linux glib arm64
             os: ubuntu-latest
-            rust: nightly
+            rust: stable
             target: aarch64-unknown-linux-gnu
           - build: macos x64
             os: macos-latest
-            rust: nightly
+            rust: stable
             target: x86_64-apple-darwin
 
     steps:

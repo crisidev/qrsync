@@ -3,8 +3,7 @@ use std::path::Path;
 use std::process;
 
 use clap::Parser;
-use qrsync::http::QrSyncHttp;
-use qrsync::ResultOrError;
+use qrsync::{QrSyncHttp, QrSyncResult};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
@@ -55,7 +54,7 @@ fn setup_tracing() {
 }
 
 /// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
-fn register_signal_handlers() -> ResultOrError<()> {
+fn register_signal_handlers() -> QrSyncResult<()> {
     ctrlc::set_handler(move || {
         tracing::warn!("Shutting down QrSync server");
         process::exit(0);
@@ -64,7 +63,7 @@ fn register_signal_handlers() -> ResultOrError<()> {
 }
 
 /// Parse command line flags, configure logging, register signal handlers and run QrSync.
-async fn run() -> ResultOrError<()> {
+async fn run() -> QrSyncResult<()> {
     let opts = Opts::parse();
     setup_tracing();
     tracing::debug!("Command line options are {:#?}", opts);

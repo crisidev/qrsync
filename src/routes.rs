@@ -12,7 +12,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::error::QrSyncError;
-use crate::ResultOrError;
+use crate::QrSyncResult;
 
 const POST_HTML: &str = include_str!("templates/post.html");
 const DONE_HTML: &str = include_str!("templates/done.html");
@@ -21,20 +21,20 @@ const BOOTSTRAP_CSS: &str = include_str!("templates/bootstrap.min.css");
 const BOOTSTRAP_CSS_MAP: &str = include_str!("templates/bootstrap.min.css.map");
 
 /// Request context structure, passed between Axum handlers to share state.
-pub struct RequestCtx {
+pub(crate) struct State {
     file_name: Option<String>,
     root_dir: PathBuf,
 }
 
-impl RequestCtx {
-    pub fn new(file_name: Option<String>, root_dir: &Path) -> Self {
-        RequestCtx {
+impl State {
+    pub(crate) fn new(file_name: Option<String>, root_dir: &Path) -> Self {
+        State {
             file_name,
             root_dir: root_dir.to_path_buf(),
         }
     }
 
-    async fn download_file(&self, file_name: String) -> ResultOrError<Vec<u8>> {
+    async fn download_file(&self, file_name: String) -> QrSyncResult<Vec<u8>> {
         match self.file_name.as_ref() {
             Some(stored_filename) => {
                 let encoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)?;
@@ -64,27 +64,21 @@ impl RequestCtx {
     /// Copy a file from a source to a destination. The file_name and content_type are used to produce
     /// nice errors.
     async fn copy_file(&self, content_type: &str, src: Bytes, dst: &Path) {
-        let mut f = File::create(dst).await.unwrap();
-        match f.write_all(&src).await {
-            Ok(_) => tracing::info!(
-                "Received file with content-type {} stored in {}",
-                content_type,
-                dst.display()
-            ),
-            Err(e) => tracing::error!(
-                "Unable to store file {} to {}: {}",
-                self.file_name.as_ref().unwrap_or(&"unknown-file".to_string()),
-                dst.display(),
-                e
-            ),
+        match File::create(dst).await {
+            Ok(mut f) => match f.write_all(&src).await {
+                Ok(_) => tracing::info!(
+                    "Received file with content-type {} stored in {}",
+                    content_type,
+                    dst.display()
+                ),
+                Err(e) => tracing::error!("Unable to store file {:?} to {}: {}", self.file_name, dst.display(), e),
+            },
+            Err(e) => tracing::error!("Unable to store file {:?} to {}: {}", self.file_name, dst.display(), e),
         }
     }
 }
 
-pub(crate) async fn get_send(
-    AxumPath(file_name): AxumPath<String>,
-    state: Extension<Arc<RequestCtx>>,
-) -> impl IntoResponse {
+pub(crate) async fn get_send(AxumPath(file_name): AxumPath<String>, state: Extension<Arc<State>>) -> impl IntoResponse {
     match state.download_file(file_name).await {
         Ok(data) => Ok(data),
         Err(_) => Err(Redirect::to("/error")),
@@ -97,23 +91,41 @@ pub(crate) async fn post_receive(
     ContentLengthLimit(mut multipart): ContentLengthLimit<
         Multipart,
         {
-            250 * 1024 * 1024 /* 250mb */
+            250 * 1024 * 1024 * 1024 /* 250gb */
         },
     >,
-    state: Extension<Arc<RequestCtx>>,
+    state: Extension<Arc<State>>,
 ) -> impl IntoResponse {
-    while let Some(field) = multipart.next_field().await.unwrap() {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| {
+            let e: QrSyncError = e.into();
+            e.into_response()
+        })
+        .unwrap()
+    {
         let content_type = field.content_type().unwrap_or("text/plain").to_string();
         if let Some(file_name) = field.file_name() {
             if !file_name.is_empty() {
                 let file_path = state.root_dir.join(file_name);
                 state
-                    .copy_file(&content_type, field.bytes().await.unwrap(), &file_path)
+                    .copy_file(
+                        &content_type,
+                        field
+                            .bytes()
+                            .await
+                            .map_err(|e| {
+                                let e: QrSyncError = e.into();
+                                e.into_response()
+                            })
+                            .unwrap(),
+                        &file_path,
+                    )
                     .await;
             }
         }
     }
-    tracing::error!("Sono qui a receive done"); 
     Redirect::to("/receive_done")
 }
 

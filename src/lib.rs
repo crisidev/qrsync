@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![warn(missing_docs, missing_debug_implementations)]
 
 //! ## QrSync
 //! Utility to copy files over WiFi to/from mobile devices inside a terminal.
@@ -18,11 +19,12 @@
 //! See Github project [README](https://github.com/crisidev/qrsync/blob/master/README.md) for more
 //! info.
 
-pub mod error;
-pub mod http;
-pub mod routes;
+mod error;
+mod http;
+mod routes;
 
-use crate::error::QrSyncError;
+pub use error::QrSyncError;
+pub use http::QrSyncHttp;
 
 /// Handy type handling Result and Errors.
-pub type ResultOrError<T> = Result<T, QrSyncError>;
+pub type QrSyncResult<T> = Result<T, QrSyncError>;

@@ -15,16 +15,12 @@ use qr2term::render::{Color, QrDark, QrLight, Renderer};
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
-use crate::error::QrSyncError;
-use crate::routes::{
-    bad_request, get_error, get_receive, get_receive_done, get_send, post_receive, slash, static_bootstrap_css,
-    static_bootstrap_css_map, static_favicon, RequestCtx,
-};
-use crate::ResultOrError;
+use crate::routes::*;
+use crate::{QrSyncError, QrSyncResult};
 
 /// Main structure implementing the workflow if sending and receving files between devices.
 /// It fetches the main IP address, generates the QR code, configures and runs the Rocket worker.
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct QrSyncHttp {
     ip_address: Option<String>,
     port: u16,
@@ -35,6 +31,7 @@ pub struct QrSyncHttp {
 }
 
 impl QrSyncHttp {
+    /// Create a new instance of QrSyncHttp from command line arguments.
     pub fn new(
         ip_address: Option<String>,
         port: u16,
@@ -57,7 +54,7 @@ impl QrSyncHttp {
     /// routable interface with an IP address which can be reached from the outside.
     /// This method currently works only on *nix.
     #[cfg(target_family = "unix")]
-    fn find_public_ip(&self) -> ResultOrError<String> {
+    fn find_public_ip(&self) -> QrSyncResult<String> {
         if self.ip_address.is_some() {
             return Ok(self.ip_address.as_ref().unwrap().to_string());
         }
@@ -100,7 +97,7 @@ impl QrSyncHttp {
     /// platform.
     /// This method currently works only on windows.
     #[cfg(target_family = "windows")]
-    fn find_public_ip(&self) -> ResultOrError<String> {
+    fn find_public_ip(&self) -> QrSyncResult<String> {
         match &self.ip_address {
             Some(ip_address) => Ok(ip_address.to_string()),
             None => Err(QrSyncError::new(
@@ -112,7 +109,7 @@ impl QrSyncHttp {
 
     /// Generates the QR code based on the mode QrSync is started, giving the user a different URL
     /// in case we are expecting the mobile device to send to receive the file.
-    fn generate_qr_code_url(&self, ip_address: &str) -> ResultOrError<String> {
+    fn generate_qr_code_url(&self, ip_address: &str) -> QrSyncResult<String> {
         let url = match self.filename.as_ref() {
             Some(filename) => {
                 tracing::info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
@@ -137,7 +134,7 @@ impl QrSyncHttp {
 
     /// Print the QR code to stdout on the terminal and generates white based QRs on dark terminals
     /// and black based QRs on light terminals.
-    fn generate_qr_code_matrix(&self, data: &str) -> ResultOrError<Matrix<Color>> {
+    fn generate_qr_code_matrix(&self, data: &str) -> QrSyncResult<Matrix<Color>> {
         let mut matrix = Qr::from(data)?.to_matrix();
         if self.light_term {
             matrix.surround(2, QrDark);
@@ -147,7 +144,7 @@ impl QrSyncHttp {
         Ok(matrix)
     }
 
-    fn print_qr_code(&self, ip_address: &str) -> ResultOrError<()> {
+    fn print_qr_code(&self, ip_address: &str) -> QrSyncResult<()> {
         let url = self.generate_qr_code_url(ip_address)?;
         let qr = self.generate_qr_code_matrix(&url)?;
         Renderer::default().print_stdout(&qr);
@@ -155,7 +152,7 @@ impl QrSyncHttp {
     }
 
     /// Configure Axum, print the QR code and run the HTTP worker.
-    pub async fn run(&self) -> ResultOrError<()> {
+    pub async fn run(&self) -> QrSyncResult<()> {
         let app = Router::new()
             .route("/", get(slash))
             .route("/receive", get(get_receive))
@@ -167,7 +164,7 @@ impl QrSyncHttp {
             .route("/:file_name", get(get_send))
             .route("/receive", post(post_receive))
             .fallback(bad_request.into_service());
-        let state = Arc::new(RequestCtx::new(self.filename.clone(), &self.root_dir));
+        let state = Arc::new(State::new(self.filename.clone(), &self.root_dir));
         let app = app.layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
