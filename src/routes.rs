@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use axum::body::{Bytes, Full};
 use axum::extract::{ContentLengthLimit, Extension, Multipart, Path as AxumPath};
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -34,7 +34,7 @@ impl State {
         }
     }
 
-    async fn download_file(&self, file_name: String) -> QrSyncResult<Vec<u8>> {
+    async fn download_file(&self, file_name: &str) -> QrSyncResult<Vec<u8>> {
         match self.file_name.as_ref() {
             Some(stored_filename) => {
                 let encoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)?;
@@ -79,8 +79,29 @@ impl State {
 }
 
 pub(crate) async fn get_send(AxumPath(file_name): AxumPath<String>, state: Extension<Arc<State>>) -> impl IntoResponse {
-    match state.download_file(file_name).await {
-        Ok(data) => Ok(data),
+    match state.download_file(&file_name).await {
+        Ok(data) => {
+            let decoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)
+                .map_err(|e| {
+                    let e: QrSyncError = e.into();
+                    e.into_response()
+                })
+                .unwrap();
+            let decoded_file_name = str::from_utf8(&decoded_file_name)
+                .map_err(|e| {
+                    let e: QrSyncError = e.into();
+                    e.into_response()
+                })
+                .unwrap();
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header(
+                    header::CONTENT_DISPOSITION,
+                    format!("attachment; filename=\"{}\"", decoded_file_name),
+                )
+                .body(Full::from(data))
+                .unwrap())
+        }
         Err(_) => Err(Redirect::to("/error")),
     }
 }
@@ -148,7 +169,7 @@ pub(crate) async fn get_error() -> impl IntoResponse {
 pub(crate) async fn static_bootstrap_css() -> impl IntoResponse {
     Response::builder()
         .status(StatusCode::OK)
-        .header("content-type", "text/css")
+        .header(header::CONTENT_TYPE, "text/css")
         .body(Full::from(BOOTSTRAP_CSS.to_string()))
         .unwrap()
 }
@@ -162,7 +183,7 @@ pub(crate) async fn static_bootstrap_css_map() -> impl IntoResponse {
 pub(crate) async fn static_favicon() -> impl IntoResponse {
     Response::builder()
         .status(StatusCode::OK)
-        .header("content-type", "image/webp")
+        .header(header::CONTENT_TYPE, "image/webp")
         .body(Full::from("hi".to_string()))
         .unwrap()
 }
