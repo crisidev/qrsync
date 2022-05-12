@@ -176,7 +176,12 @@ impl QrSyncHttp {
         let ip_address = self.find_public_ip()?;
         self.print_qr_code(&ip_address)?;
         let address = format!("{}:{}", ip_address, self.port).parse()?;
-        Ok(axum::Server::bind(&address).serve(app.into_make_service()).await?)
+        let server = hyper::Server::bind(&address).serve(app.into_make_service());
+
+        if let Err(err) = server.await {
+            tracing::error!("Server error: {}", err);
+        }
+        Ok(())
     }
 }
 
