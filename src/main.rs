@@ -1,14 +1,12 @@
-#[macro_use]
-extern crate log;
-
 use std::env;
 use std::path::Path;
 use std::process;
 
 use clap::Parser;
-use log::LevelFilter;
 use qrsync::http::QrSyncHttp;
 use qrsync::ResultOrError;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::{prelude::*, EnvFilter};
 
 /// Clap derived command line options.
 #[derive(Parser, Debug)]
@@ -42,25 +40,29 @@ struct Opts {
     ipv6: bool,
 }
 
-/// Setup logging, with different level configurations for QrSync and the rest of libraries used.
-fn setup_logging(debug: bool, rocket_debug: bool) {
-    let app_level = if debug { LevelFilter::Debug } else { LevelFilter::Info };
-    let rocket_level = if rocket_debug {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Error
-    };
-    pretty_env_logger::formatted_builder()
-        .filter(Some("qrsync"), app_level)
-        .filter(None, rocket_level)
-        .init();
-    debug!("QrSync log level: {}, Rocket log level: {}", app_level, rocket_level);
+/// Setup `tracing::subscriber` to read the log level from RUST_LOG environment variable.
+fn setup_tracing() {
+    let format = tracing_subscriber::fmt::layer()
+        .with_ansi(true)
+        .with_line_number(true)
+        .with_level(true);
+    match EnvFilter::try_from_default_env() {
+        Ok(filter) => {
+            tracing_subscriber::registry().with(format).with(filter).init();
+        }
+        Err(_) => {
+            tracing_subscriber::registry()
+                .with(format)
+                .with(LevelFilter::INFO)
+                .init();
+        }
+    }
 }
 
 /// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
 fn register_signal_handlers() -> ResultOrError<()> {
     ctrlc::set_handler(move || {
-        warn!("Shutting down QrSync server");
+        tracing::warn!("Shutting down QrSync server");
         process::exit(0);
     })?;
     Ok(())
@@ -69,8 +71,8 @@ fn register_signal_handlers() -> ResultOrError<()> {
 /// Parse command line flags, configure logging, register signal handlers and run QrSync.
 fn run() -> ResultOrError<()> {
     let opts = Opts::parse();
-    setup_logging(opts.debug, opts.rocket_debug);
-    debug!("Command line options are {:#?}", opts);
+    setup_tracing();
+    tracing::debug!("Command line options are {:#?}", opts);
     register_signal_handlers()?;
     let root_dir = match opts.root_dir {
         Some(r) => Path::new(&r).to_path_buf(),
@@ -93,11 +95,11 @@ fn run() -> ResultOrError<()> {
 fn main() -> ! {
     match run() {
         Ok(_) => {
-            info!("QrSync run successfully");
+            tracing::info!("QrSync run successfully");
             process::exit(0);
         }
         Err(e) => {
-            error!("Error running QrSync: {}", e);
+            tracing::error!("Error running QrSync: {}", e);
             process::exit(1);
         }
     }

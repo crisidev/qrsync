@@ -16,15 +16,15 @@ categories = ["command-line-utilities", "multimedia"]
 base64 = "0"
 ctrlc = { version = "3", features = ["termination"] }
 clap = { version = "3", features = ["derive"] }
-log = "0.4"
 pnet = "0.29"
-pretty_env_logger = "0.4"
 qr2term = "0.3"
 rocket = "0.4.10"
 rocket_contrib = "0.4.10"
 rocket-download-response = "0.4"
 rocket-multipart-form-data = "0.8"
 thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2"

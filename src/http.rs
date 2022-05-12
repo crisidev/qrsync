@@ -83,7 +83,7 @@ impl QrSyncHttp {
                     }
                 }
                 if !ip_address.is_loopback() {
-                    debug!("Found IP address {} for interface {}", ip_address, interface.name);
+                    tracing::debug!("Found IP address {} for interface {}", ip_address, interface.name);
                     Ok(ip_address.to_string())
                 } else {
                     Err(QrSyncError::Error(
@@ -117,7 +117,7 @@ impl QrSyncHttp {
     fn generate_qr_code_url(&self, ip_address: String) -> ResultOrError<String> {
         let url = if self.filename.is_some() {
             let filename = self.filename.as_ref().unwrap();
-            info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
+            tracing::info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
             format!(
                 "http://{}:{}/{}",
                 ip_address,
@@ -125,13 +125,13 @@ impl QrSyncHttp {
                 base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
             )
         } else {
-            info!(
+            tracing::info!(
                 "Receive mode enabled inside directory {}",
                 fs::canonicalize(&self.root_dir)?.display()
             );
             format!("http://{}:{}/receive", ip_address, self.port)
         };
-        info!("Scan this QR code with a QR code reader app to open the URL {}", url);
+        tracing::info!("Scan this QR code with a QR code reader app to open the URL {}", url);
         Ok(url)
     }
 

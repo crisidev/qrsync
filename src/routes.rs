@@ -46,15 +46,16 @@ impl RequestCtx {
                     let file_path = self.root_dir.join(stored_filename);
                     Ok(DownloadResponse::from_file(file_path, Some(decoded_file_name), None))
                 } else {
-                    error!(
+                    tracing::error!(
                         "Requested file {} differs from served one {}",
-                        decoded_file_name, stored_filename
+                        decoded_file_name,
+                        stored_filename
                     );
                     Err(QrSyncError::Error("QrSync is not running in send mode".into()))
                 }
             }
             None => {
-                error!("QrSync is not running in send mode");
+                tracing::error!("QrSync is not running in send mode");
                 Err(QrSyncError::Error("QrSync is not running in send mode".into()))
             }
         }
@@ -64,12 +65,12 @@ impl RequestCtx {
     /// nice errors.
     fn copy_file(&self, content_type: &Mime, src: &Path, dst: &Path) {
         match fs::copy(src, dst) {
-            Ok(_) => info!(
+            Ok(_) => tracing::info!(
                 "Received file with content-type {} stored in {}",
                 content_type,
                 dst.display()
             ),
-            Err(e) => error!(
+            Err(e) => tracing::error!(
                 "Unable to store file {} to {}: {}",
                 self.file_name.as_ref().unwrap_or(&"unknown-file".to_string()),
                 dst.display(),
@@ -131,7 +132,7 @@ pub fn post_receive(content_type: &ContentType, data: Data, state: State<Request
             Redirect::found("/receive_done")
         }
         Err(e) => {
-            error!("Unable to parse multipart form data: {}", e);
+            tracing::error!("Unable to parse multipart form data: {}", e);
             Redirect::found("/error")
         }
     }

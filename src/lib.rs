@@ -22,11 +22,8 @@
 extern crate base64;
 extern crate clap;
 extern crate ctrlc;
-#[macro_use]
-extern crate log;
 #[cfg(target_family = "unix")]
 extern crate pnet;
-extern crate pretty_env_logger;
 extern crate qr2term;
 #[macro_use]
 extern crate rocket;
