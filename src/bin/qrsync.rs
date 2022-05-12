@@ -44,11 +44,7 @@ struct Opts {
 
 /// Setup logging, with different level configurations for QrSync and the rest of libraries used.
 fn setup_logging(debug: bool, rocket_debug: bool) {
-    let app_level = if debug {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Info
-    };
+    let app_level = if debug { LevelFilter::Debug } else { LevelFilter::Info };
     let rocket_level = if rocket_debug {
         LevelFilter::Debug
     } else {
@@ -58,10 +54,7 @@ fn setup_logging(debug: bool, rocket_debug: bool) {
         .filter(Some("qrsync"), app_level)
         .filter(None, rocket_level)
         .init();
-    debug!(
-        "QrSync log level: {}, Rocket log level: {}",
-        app_level, rocket_level
-    );
+    debug!("QrSync log level: {}, Rocket log level: {}", app_level, rocket_level);
 }
 
 /// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
