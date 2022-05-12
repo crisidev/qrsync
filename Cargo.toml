@@ -24,6 +24,7 @@ rocket = "0.4.10"
 rocket_contrib = "0.4.10"
 rocket-download-response = "0.4"
 rocket-multipart-form-data = "0.8"
+thiserror = "1.0"
 
 [dev-dependencies]
 pretty_assertions = "1.2"

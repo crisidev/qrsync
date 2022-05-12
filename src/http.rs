@@ -16,8 +16,7 @@ use crate::routes::{
     bad_request, static_rocket_route_info_for_get_done, static_rocket_route_info_for_get_error,
     static_rocket_route_info_for_get_receive, static_rocket_route_info_for_get_send,
     static_rocket_route_info_for_post_receive, static_rocket_route_info_for_slash,
-    static_rocket_route_info_for_static_bootstrap_css,
-    static_rocket_route_info_for_static_bootstrap_css_map,
+    static_rocket_route_info_for_static_bootstrap_css, static_rocket_route_info_for_static_bootstrap_css_map,
     static_rocket_route_info_for_static_favicon, RequestCtx,
 };
 use crate::ResultOrError;
@@ -84,22 +83,17 @@ impl QrSyncHttp {
                     }
                 }
                 if !ip_address.is_loopback() {
-                    debug!(
-                        "Found IP address {} for interface {}",
-                        ip_address, interface.name
-                    );
+                    debug!("Found IP address {} for interface {}", ip_address, interface.name);
                     Ok(ip_address.to_string())
                 } else {
-                    Err(QrSyncError::new(
-                        "Unable to find a valid IP address to bind with. See --ip-address option to specify the IP address to use", 
-                        Some("ip-discovery")
+                    Err(QrSyncError::Error(
+                        "Unable to find a valid IP address to bind with. See --ip-address option to specify the IP address to use".into() 
                     ))
                 }
-            },
-            None => Err(QrSyncError::new(
-                "Unable to find default interface. See --ip-address option to specify the IP address to use",
-                Some("ip-discovery"),
-            ))
+            }
+            None => Err(QrSyncError::Error(
+                "Unable to find default interface. See --ip-address option to specify the IP address to use".into(),
+            )),
         }
     }
 
@@ -123,10 +117,7 @@ impl QrSyncHttp {
     fn generate_qr_code_url(&self, ip_address: String) -> ResultOrError<String> {
         let url = if self.filename.is_some() {
             let filename = self.filename.as_ref().unwrap();
-            info!(
-                "Send mode enabled for file {}",
-                fs::canonicalize(filename)?.display()
-            );
+            info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
             format!(
                 "http://{}:{}/{}",
                 ip_address,
@@ -140,10 +131,7 @@ impl QrSyncHttp {
             );
             format!("http://{}:{}/receive", ip_address, self.port)
         };
-        info!(
-            "Scan this QR code with a QR code reader app to open the URL {}",
-            url
-        );
+        info!("Scan this QR code with a QR code reader app to open the URL {}", url);
         Ok(url)
     }
 
@@ -170,8 +158,8 @@ impl QrSyncHttp {
     /// nice page to the user.
     fn build_error_catchers(&self) -> Vec<Catcher> {
         let codes = vec![
-            400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416,
-            417, 418, 421, 426, 428, 429, 431, 451, 500, 501, 503, 511,
+            400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 421, 426,
+            428, 429, 431, 451, 500, 501, 503, 511,
         ];
         let mut catchers: Vec<Catcher> = Vec::new();
         for code in codes.iter() {
@@ -209,10 +197,7 @@ impl QrSyncHttp {
             .manage(RequestCtx::new(self.filename.clone(), &self.root_dir))
             .launch();
 
-        Err(QrSyncError::new(
-            &format!("Launch failed! Error: {}", error),
-            Some("rocket-launch"),
-        ))
+        Err(QrSyncError::Error(format!("Launch failed! Error: {}", error)))
     }
 }
 

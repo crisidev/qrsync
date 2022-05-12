@@ -11,8 +11,7 @@ use rocket::{Data, Request, State};
 use rocket_download_response::DownloadResponse;
 use rocket_multipart_form_data::mime::Mime;
 use rocket_multipart_form_data::{
-    mime, FileField, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions,
-    Repetition,
+    mime, FileField, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions, Repetition,
 };
 
 use crate::error::QrSyncError;
@@ -45,28 +44,18 @@ impl RequestCtx {
                 let decoded_file_name = str::from_utf8(&encoded_file_name)?;
                 if stored_filename == decoded_file_name {
                     let file_path = self.root_dir.join(stored_filename);
-                    Ok(DownloadResponse::from_file(
-                        file_path,
-                        Some(decoded_file_name),
-                        None,
-                    ))
+                    Ok(DownloadResponse::from_file(file_path, Some(decoded_file_name), None))
                 } else {
                     error!(
                         "Requested file {} differs from served one {}",
                         decoded_file_name, stored_filename
                     );
-                    Err(QrSyncError::new(
-                        "QrSync is not running in send mode",
-                        Some("rocket"),
-                    ))
+                    Err(QrSyncError::Error("QrSync is not running in send mode".into()))
                 }
             }
             None => {
                 error!("QrSync is not running in send mode");
-                Err(QrSyncError::new(
-                    "QrSync is not running in send mode",
-                    Some("rocket"),
-                ))
+                Err(QrSyncError::Error("QrSync is not running in send mode".into()))
             }
         }
     }
@@ -82,9 +71,7 @@ impl RequestCtx {
             ),
             Err(e) => error!(
                 "Unable to store file {} to {}: {}",
-                self.file_name
-                    .as_ref()
-                    .unwrap_or(&"unknown-file".to_string()),
+                self.file_name.as_ref().unwrap_or(&"unknown-file".to_string()),
                 dst.display(),
                 e
             ),
