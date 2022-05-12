@@ -34,7 +34,7 @@ Alternatively you can install the latest tag directly from [crates.io](https://c
 ```
 
 ### Rust version
-QrSync depends on Rocket, which only builds against nightly >= 1.42.
+QrSync builds against stable Rust >= 1.60.
 
 ### Platforms support
 QrSync has been tested on Linux and MacOSX. 
@@ -42,7 +42,7 @@ QrSync has been tested on Linux and MacOSX.
 It currently also build against Windows, but it has not being tested. On \*nix it uses [pnet](https://github.com/libpnet/libpnet) to auto discover the primary interface and its IP address and bind against it. Pnet have a some complex dependencies to build against Windows (see [here](https://github.com/libpnet/libpnet#windows) for more info), so on this platform QrSync makes the `--ip-address` command-line option mandatory and `pnet` is not built at all. 
 
 ### Operational modes
-QrSync can run in two mode, depending on command line options:
+QrSync can run in two modes, depending on command line options:
 * **Send mode:** this mode is selected when a file is passed to the command line. QrSync will
 generate a QR code on the terminal and start the HTTP server in send mode.
     Example:
@@ -78,20 +78,18 @@ FLAGS:
     -h, --help            Prints help information
     -6, --ipv6            Prefer IPv6 over IPv4
     -l, --light-term      Draw QR in a terminal with light background
-    -D, --rocket-debug    Enable Rocket framework debug
     -V, --version         Prints version information
 
 OPTIONS:
     -i, --ip-address <ip-address>    IP address to bind the HTTP server to. Default to primary interface
     -p, --port <port>                Port to bind the HTTP server to [default: 5566]
     -r, --root-dir <root-dir>        Root directory to store files in receive mode
-    -w, --workers <workers>          Number of rocket workers [default: 1]
 ```
 
 ### Acknowledgement
 * [qrcp](https://github.com/claudiodangelis/qrcp): I took many ideas from this amazing project
 and "stole" most of the HTML Bootstrap based UI.
-* [rocket](https://rocket.rs/): A great HTTP framework for Rust, very expandable and simple to
+* [axum](https://github.com/tokio-rs/axum/): A great HTTP framework for Rust, very expandable and simple to
 use.
 * [qr2term](https://docs.rs/qr2term/): Terminal based QR rendering library.
 * [clap](https://clap.rs/): Oh man, where do I start telling how much do I love Clap?

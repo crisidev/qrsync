@@ -9,11 +9,11 @@ readme = "README.md"
 homepage = "https://github.com/crisidev/qrsync"
 repository = "https://github.com/crisidev/qrsync"
 license = "MIT"
-keywords = ["qrcode", "terminal", "rocket", "mobile"]
+keywords = ["qrcode", "terminal", "tokio", "mobile"]
 categories = ["command-line-utilities", "multimedia"]
 
 [dependencies]
-axum = "0.5"
+axum = { version = "0.5", features = ["multipart"] }
 axum-server = "0.4"
 base64 = "0"
 ctrlc = { version = "3", features = ["termination"] }
@@ -21,14 +21,12 @@ clap = { version = "3", features = ["derive"] }
 hyper = "0.14"
 pnet = "0.29"
 qr2term = "0.3"
-rocket = "0.4.10"
-rocket_contrib = "0.4.10"
-rocket-download-response = "0.4"
-rocket-multipart-form-data = "0.8"
 thiserror = "1.0"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.3", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2"

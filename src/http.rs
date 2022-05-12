@@ -2,23 +2,23 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use axum::routing::get;
-use axum::Router;
+use axum::handler::Handler;
+use axum::routing::{get, post};
+use axum::{Extension, Router};
 #[cfg(target_family = "unix")]
 use pnet::datalink;
 use qr2term::matrix::Matrix;
 use qr2term::qr::Qr;
 use qr2term::render::{Color, QrDark, QrLight, Renderer};
-use rocket::config::{Config, Environment};
-use rocket::Catcher;
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 
 use crate::error::QrSyncError;
 use crate::routes::{
-    bad_request, get_error, get_receive, get_receive_done,
-    static_rocket_route_info_for_get_send, static_rocket_route_info_for_post_receive,
-    static_rocket_route_info_for_slash, static_rocket_route_info_for_static_bootstrap_css,
-    static_rocket_route_info_for_static_bootstrap_css_map, static_rocket_route_info_for_static_favicon, RequestCtx,
+    bad_request, get_error, get_receive, get_receive_done, get_send, post_receive, slash, static_bootstrap_css,
+    static_bootstrap_css_map, static_favicon, RequestCtx,
 };
 use crate::ResultOrError;
 
@@ -30,7 +30,6 @@ pub struct QrSyncHttp {
     port: u16,
     filename: Option<String>,
     root_dir: PathBuf,
-    workers: u16,
     light_term: bool,
     ipv6: bool,
 }
@@ -41,7 +40,6 @@ impl QrSyncHttp {
         port: u16,
         filename: Option<String>,
         root_dir: PathBuf,
-        workers: u16,
         light_term: bool,
         ipv6: bool,
     ) -> Self {
@@ -50,7 +48,6 @@ impl QrSyncHttp {
             port,
             filename,
             root_dir,
-            workers,
             light_term,
             ipv6,
         }
@@ -74,7 +71,7 @@ impl QrSyncHttp {
             Some(interface) => {
                 for ip in interface.ips.iter() {
                     if self.ipv6 {
-                        if ip.is_ipv6() && ip.ip().is_global() {
+                        if ip.is_ipv6() {
                             ip_address = ip.ip();
                             break;
                         }
@@ -116,21 +113,23 @@ impl QrSyncHttp {
     /// Generates the QR code based on the mode QrSync is started, giving the user a different URL
     /// in case we are expecting the mobile device to send to receive the file.
     fn generate_qr_code_url(&self, ip_address: &str) -> ResultOrError<String> {
-        let url = if self.filename.is_some() {
-            let filename = self.filename.as_ref().unwrap();
-            tracing::info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
-            format!(
-                "http://{}:{}/{}",
-                ip_address,
-                self.port,
-                base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
-            )
-        } else {
-            tracing::info!(
-                "Receive mode enabled inside directory {}",
-                fs::canonicalize(&self.root_dir)?.display()
-            );
-            format!("http://{}:{}/receive", ip_address, self.port)
+        let url = match self.filename.as_ref() {
+            Some(filename) => {
+                tracing::info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
+                format!(
+                    "http://{}:{}/{}",
+                    ip_address,
+                    self.port,
+                    base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
+                )
+            }
+            None => {
+                tracing::info!(
+                    "Receive mode enabled inside directory {}",
+                    fs::canonicalize(&self.root_dir)?.display()
+                );
+                format!("http://{}:{}/receive", ip_address, self.port)
+            }
         };
         tracing::info!("Scan this QR code with a QR code reader app to open the URL {}", url);
         Ok(url)
@@ -155,54 +154,25 @@ impl QrSyncHttp {
         Ok(())
     }
 
-    /// Build a list of Rocket::Catcher for any HTTP error Rocket supports to allow presenting a
-    /// nice page to the user.
-    fn build_error_catchers(&self) -> Vec<Catcher> {
-        let codes = vec![
-            400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 421, 426,
-            428, 429, 431, 451, 500, 501, 503, 511,
-        ];
-        let mut catchers: Vec<Catcher> = Vec::new();
-        for code in codes.iter() {
-            catchers.push(Catcher::new(*code, bad_request));
-        }
-        catchers
-    }
-
-    /// Configure rocket, print the QR code and run the HTTP worker.
-    pub fn run(&self) -> ResultOrError<()> {
-        let ip_address = self.find_public_ip()?;
-        let config = Config::build(Environment::Production)
-            .address(&ip_address)
-            .port(self.port)
-            .workers(self.workers)
-            .finalize()?;
-        let app = rocket::custom(config);
-        self.print_qr_code(&ip_address)?;
-        let error = app
-            .mount(
-                "/",
-                routes![
-                    slash,
-                    get_send,
-                    post_receive,
-                    static_bootstrap_css,
-                    static_bootstrap_css_map,
-                    static_favicon,
-                ],
-            )
-            .register(self.build_error_catchers())
-            .manage(RequestCtx::new(self.filename.clone(), &self.root_dir))
-            .launch();
-
-        Err(QrSyncError::Error(format!("Launch failed! Error: {}", error)))
-    }
-
-    pub async fn run_axum(&self) -> ResultOrError<()> {
+    /// Configure Axum, print the QR code and run the HTTP worker.
+    pub async fn run(&self) -> ResultOrError<()> {
         let app = Router::new()
+            .route("/", get(slash))
             .route("/receive", get(get_receive))
             .route("/receive_done", get(get_receive_done))
-            .route("/error", get(get_error));
+            .route("/error", get(get_error))
+            .route("/static/bootstrap.min.css", get(static_bootstrap_css))
+            .route("/static/bootstrap.min.css.map", get(static_bootstrap_css_map))
+            .route("/favicon.ico", get(static_favicon))
+            .route("/:file_name", get(get_send))
+            .route("/receive", post(post_receive))
+            .fallback(bad_request.into_service());
+        let state = Arc::new(RequestCtx::new(self.filename.clone(), &self.root_dir));
+        let app = app.layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(Extension(state)),
+        );
         let ip_address = self.find_public_ip()?;
         self.print_qr_code(&ip_address)?;
         let address = format!("{}:{}", ip_address, self.port).parse()?;
@@ -223,7 +193,6 @@ mod test {
             12345,
             Some("a-file".to_string()),
             PathBuf::from("a-dir"),
-            1,
             false,
             false,
         );
@@ -237,7 +206,6 @@ mod test {
             12345,
             Some("a-file".to_string()),
             PathBuf::from("a-dir"),
-            1,
             false,
             false,
         );
@@ -253,7 +221,6 @@ mod test {
             12345,
             Some(file_name.to_string()),
             PathBuf::from("a-dir"),
-            1,
             false,
             false,
         );
@@ -276,7 +243,6 @@ mod test {
             12345,
             None,
             PathBuf::from("a-dir"),
-            1,
             false,
             false,
         );
@@ -292,7 +258,6 @@ mod test {
             12345,
             None,
             PathBuf::from("a-dir"),
-            1,
             false,
             false,
         );
@@ -313,7 +278,6 @@ mod test {
             12345,
             None,
             PathBuf::from("a-dir"),
-            1,
             true,
             false,
         );
@@ -327,22 +291,6 @@ mod test {
     }
 
     #[test]
-    fn test_build_error_catcher() {
-        let ip_address = "10.0.0.1";
-        let http = QrSyncHttp::new(
-            Some(ip_address.to_string()),
-            12345,
-            None,
-            PathBuf::from("a-dir"),
-            1,
-            false,
-            false,
-        );
-        let catchers = http.build_error_catchers();
-        assert_eq!(catchers.len(), 29);
-    }
-
-    #[test]
     fn test_print_qr_code() {
         let ip_address = "10.0.0.1";
         let http = QrSyncHttp::new(
@@ -350,7 +298,6 @@ mod test {
             12345,
             None,
             PathBuf::from("a-dir"),
-            1,
             false,
             false,
         );

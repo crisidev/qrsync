@@ -20,18 +20,12 @@ struct Opts {
     /// Enable QrSync debug.
     #[clap(short = 'd', long = "debug")]
     debug: bool,
-    /// Enable Rocket framework debug.
-    #[clap(short = 'D', long = "rocket-debug")]
-    rocket_debug: bool,
     /// Port to bind the HTTP server to.
     #[clap(short = 'p', long = "port", default_value = "5566")]
     port: u16,
     /// IP address to bind the HTTP server to. Default to primary interface.
     #[clap(short = 'i', long = "ip-address")]
     ip_address: Option<String>,
-    /// Number of rocket workers.
-    #[clap(short = 'w', long = "workers", default_value = "1")]
-    workers: u16,
     /// Draw QR in a terminal with light background.
     #[clap(short = 'l', long = "light-term")]
     light_term: bool,
@@ -45,7 +39,8 @@ fn setup_tracing() {
     let format = tracing_subscriber::fmt::layer()
         .with_ansi(true)
         .with_line_number(true)
-        .with_level(true);
+        .with_level(true)
+        .without_time();
     match EnvFilter::try_from_default_env() {
         Ok(filter) => {
             tracing_subscriber::registry().with(format).with(filter).init();
@@ -83,11 +78,10 @@ async fn run() -> ResultOrError<()> {
         opts.port,
         opts.filename,
         root_dir,
-        opts.workers,
         opts.light_term,
         opts.ipv6,
     );
-    http.run_axum().await?;
+    http.run().await?;
     Ok(())
 }
 

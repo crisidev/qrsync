@@ -1,19 +1,15 @@
-//! Rocket routes definitions.
+//! Axum routes definitions.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::str;
+use std::sync::Arc;
 
-use axum::response::{IntoResponse, Html};
-use rocket::http::ContentType;
-use rocket::response::content::{Css, Html as RocketHtml, Plain};
-use rocket::response::{Redirect, Responder, Result as RocketResult};
-use rocket::{Data, Request, State};
-use rocket_download_response::DownloadResponse;
-use rocket_multipart_form_data::mime::Mime;
-use rocket_multipart_form_data::{
-    mime, FileField, MultipartFormData, MultipartFormDataField, MultipartFormDataOptions, Repetition,
-};
+use axum::body::{Bytes, Full};
+use axum::extract::{ContentLengthLimit, Extension, Multipart, Path as AxumPath};
+use axum::http::StatusCode;
+use axum::response::{Html, IntoResponse, Redirect, Response};
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::error::QrSyncError;
 use crate::ResultOrError;
@@ -24,7 +20,7 @@ const ERROR_HTML: &str = include_str!("templates/error.html");
 const BOOTSTRAP_CSS: &str = include_str!("templates/bootstrap.min.css");
 const BOOTSTRAP_CSS_MAP: &str = include_str!("templates/bootstrap.min.css.map");
 
-/// Request context structure, passed between Rocket handler to share state.
+/// Request context structure, passed between Axum handlers to share state.
 pub struct RequestCtx {
     file_name: Option<String>,
     root_dir: PathBuf,
@@ -38,21 +34,24 @@ impl RequestCtx {
         }
     }
 
-    fn download_file(&self, file_name: String) -> ResultOrError<DownloadResponse> {
-        match &self.file_name {
+    async fn download_file(&self, file_name: String) -> ResultOrError<Vec<u8>> {
+        match self.file_name.as_ref() {
             Some(stored_filename) => {
                 let encoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)?;
                 let decoded_file_name = str::from_utf8(&encoded_file_name)?;
                 if stored_filename == decoded_file_name {
                     let file_path = self.root_dir.join(stored_filename);
-                    Ok(DownloadResponse::from_file(file_path, Some(decoded_file_name), None))
+                    let mut buffer = Vec::new();
+                    let mut f = File::open(file_path).await?;
+                    f.read_to_end(&mut buffer).await?;
+                    Ok(buffer)
                 } else {
                     tracing::error!(
                         "Requested file {} differs from served one {}",
                         decoded_file_name,
                         stored_filename
                     );
-                    Err(QrSyncError::Error("QrSync is not running in send mode".into()))
+                    Err(QrSyncError::Error("Requested file differs from served one".into()))
                 }
             }
             None => {
@@ -64,8 +63,9 @@ impl RequestCtx {
 
     /// Copy a file from a source to a destination. The file_name and content_type are used to produce
     /// nice errors.
-    fn copy_file(&self, content_type: &Mime, src: &Path, dst: &Path) {
-        match fs::copy(src, dst) {
+    async fn copy_file(&self, content_type: &str, src: Bytes, dst: &Path) {
+        let mut f = File::create(dst).await.unwrap();
+        match f.write_all(&src).await {
             Ok(_) => tracing::info!(
                 "Received file with content-type {} stored in {}",
                 content_type,
@@ -81,62 +81,40 @@ impl RequestCtx {
     }
 }
 
-/// Serve GET /<file_name> URL returning the file served from Rocket.
-#[get("/<file_name>")]
-pub fn get_send(file_name: String, state: State<RequestCtx>) -> Result<DownloadResponse, Redirect> {
-    match state.download_file(file_name) {
+pub(crate) async fn get_send(
+    AxumPath(file_name): AxumPath<String>,
+    state: Extension<Arc<RequestCtx>>,
+) -> impl IntoResponse {
+    match state.download_file(file_name).await {
         Ok(data) => Ok(data),
-        Err(_) => Err(Redirect::found("/error")),
+        Err(_) => Err(Redirect::to("/error")),
     }
 }
 
 /// Serve POST /receive URL parsing the multipart form. This way multiple files with different
 /// names can be received in a single session.
-#[post("/receive", format = "multipart/form-data", data = "<data>")]
-pub fn post_receive(content_type: &ContentType, data: Data, state: State<RequestCtx>) -> Redirect {
-    let mut options = MultipartFormDataOptions::new();
-    options
-        .allowed_fields
-        .push(MultipartFormDataField::file("binary-files").repetition(Repetition::infinite()));
-    options.allowed_fields.push(
-        MultipartFormDataField::file("text-file")
-            .content_type_by_string(Some(mime::TEXT_PLAIN))
-            .unwrap(),
-    );
-    match MultipartFormData::parse(content_type, data, options) {
-        Ok(multipart_form_data) => {
-            let files = multipart_form_data.files.get("binary-files");
-            let mut file_vec = Vec::new();
-            if let Some(files) = files {
-                match files {
-                    FileField::Single(data) => file_vec.push(data),
-                    FileField::Multiple(datas) => file_vec.extend(datas.iter()),
-                }
+pub(crate) async fn post_receive(
+    ContentLengthLimit(mut multipart): ContentLengthLimit<
+        Multipart,
+        {
+            250 * 1024 * 1024 /* 250mb */
+        },
+    >,
+    state: Extension<Arc<RequestCtx>>,
+) -> impl IntoResponse {
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let content_type = field.content_type().unwrap_or("text/plain").to_string();
+        if let Some(file_name) = field.file_name() {
+            if !file_name.is_empty() {
+                let file_path = state.root_dir.join(file_name);
+                state
+                    .copy_file(&content_type, field.bytes().await.unwrap(), &file_path)
+                    .await;
             }
-            let file = multipart_form_data.files.get("text-file");
-            if let Some(file) = file {
-                match file {
-                    FileField::Single(data) => file_vec.push(data),
-                    FileField::Multiple(datas) => file_vec.extend(datas.iter()),
-                }
-            }
-            for file in file_vec.iter() {
-                let content_type = file.content_type.as_ref().unwrap_or(&mime::TEXT_PLAIN);
-                let file_name = file.file_name.as_ref();
-                if let Some(file_name) = file_name {
-                    if !file_name.is_empty() {
-                        let file_path = state.root_dir.join(file_name);
-                        state.copy_file(content_type, &file.path, &file_path);
-                    }
-                }
-            }
-            Redirect::found("/receive_done")
-        }
-        Err(e) => {
-            tracing::error!("Unable to parse multipart form data: {}", e);
-            Redirect::found("/error")
         }
     }
+    tracing::error!("Sono qui a receive done"); 
+    Redirect::to("/receive_done")
 }
 
 /// Serve GET /receive URL where the user can input files and text to receive.
@@ -155,30 +133,34 @@ pub(crate) async fn get_error() -> impl IntoResponse {
 }
 
 /// Serve Bootstrap minimized CSS as static file.
-#[get("/static/bootstrap.min.css", format = "text/css")]
-pub fn static_bootstrap_css(_state: State<RequestCtx>) -> Css<String> {
-    Css(BOOTSTRAP_CSS.to_string())
+pub(crate) async fn static_bootstrap_css() -> impl IntoResponse {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "text/css")
+        .body(Full::from(BOOTSTRAP_CSS.to_string()))
+        .unwrap()
 }
 
 /// Serve Bootstrap minimized CSS map as static file.
-#[get("/static/bootstrap.min.css.map", format = "text/plain")]
-pub fn static_bootstrap_css_map(_state: State<RequestCtx>) -> Plain<String> {
-    Plain(BOOTSTRAP_CSS_MAP.to_string())
+pub(crate) async fn static_bootstrap_css_map() -> impl IntoResponse {
+    BOOTSTRAP_CSS_MAP.to_string()
 }
 
-/// Serve a fake favicon to avoid getting errors from Rocket if the favicon is requested.
-#[get("/favicon.ico", format = "image/webp")]
-pub fn static_favicon(_state: State<RequestCtx>) -> Plain<String> {
-    Plain("hi".to_string())
+/// Serve a fake favicon to avoid getting errors if the favicon is requested.
+pub(crate) async fn static_favicon() -> impl IntoResponse {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "image/webp")
+        .body(Full::from("hi".to_string()))
+        .unwrap()
 }
 
 /// Rickroll curious cats :)
-#[get("/")]
-pub fn slash(_state: State<RequestCtx>) -> Redirect {
-    Redirect::found("https://www.youtube.com/watch?v=oHg5SJYRHA0")
+pub(crate) async fn slash() -> impl IntoResponse {
+    Redirect::permanent("https://www.youtube.com/watch?v=oHg5SJYRHA0")
 }
 
-/// Catch all for HTTP Rocket errors.
-pub fn bad_request<'r>(req: &'r Request) -> RocketResult<'r> {
-    ERROR_HTML.to_string().respond_to(req)
+/// Catch all for HTTP errors.
+pub(crate) async fn bad_request() -> impl IntoResponse {
+    (StatusCode::IM_A_TEAPOT, Html(ERROR_HTML.to_string()))
 }
