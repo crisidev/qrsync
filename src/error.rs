@@ -6,6 +6,7 @@ use std::str::Utf8Error;
 
 use base64::DecodeError;
 use ctrlc::Error as CtrlcError;
+use hyper::Error as HyperError;
 use qr2term::QrError;
 use rocket::config::ConfigError;
 use rocket_multipart_form_data::mime::FromStrError;
@@ -35,4 +36,6 @@ pub enum QrSyncError {
     Base64(#[from] DecodeError),
     #[error("UTF-8 error: {0}")]
     Utf8(#[from] Utf8Error),
+    #[error("Hyper server error: {0}")]
+    Hyper(#[from] HyperError),
 }

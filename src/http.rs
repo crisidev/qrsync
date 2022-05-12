@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::PathBuf;
 
+use axum::routing::get;
+use axum::Router;
 #[cfg(target_family = "unix")]
 use pnet::datalink;
 use qr2term::matrix::Matrix;
@@ -13,7 +15,7 @@ use rocket::Catcher;
 
 use crate::error::QrSyncError;
 use crate::routes::{
-    bad_request, static_rocket_route_info_for_get_done, static_rocket_route_info_for_get_error,
+    bad_request, get_receive_axum, static_rocket_route_info_for_get_done, static_rocket_route_info_for_get_error,
     static_rocket_route_info_for_get_receive, static_rocket_route_info_for_get_send,
     static_rocket_route_info_for_post_receive, static_rocket_route_info_for_slash,
     static_rocket_route_info_for_static_bootstrap_css, static_rocket_route_info_for_static_bootstrap_css_map,
@@ -114,7 +116,7 @@ impl QrSyncHttp {
 
     /// Generates the QR code based on the mode QrSync is started, giving the user a different URL
     /// in case we are expecting the mobile device to send to receive the file.
-    fn generate_qr_code_url(&self, ip_address: String) -> ResultOrError<String> {
+    fn generate_qr_code_url(&self, ip_address: &str) -> ResultOrError<String> {
         let url = if self.filename.is_some() {
             let filename = self.filename.as_ref().unwrap();
             tracing::info!("Send mode enabled for file {}", fs::canonicalize(filename)?.display());
@@ -147,7 +149,7 @@ impl QrSyncHttp {
         Ok(matrix)
     }
 
-    fn print_qr_code(&self, ip_address: String) -> ResultOrError<()> {
+    fn print_qr_code(&self, ip_address: &str) -> ResultOrError<()> {
         let url = self.generate_qr_code_url(ip_address)?;
         let qr = self.generate_qr_code_matrix(&url)?;
         Renderer::default().print_stdout(&qr);
@@ -177,7 +179,7 @@ impl QrSyncHttp {
             .workers(self.workers)
             .finalize()?;
         let app = rocket::custom(config);
-        self.print_qr_code(ip_address)?;
+        self.print_qr_code(&ip_address)?;
         let error = app
             .mount(
                 "/",
@@ -198,6 +200,14 @@ impl QrSyncHttp {
             .launch();
 
         Err(QrSyncError::Error(format!("Launch failed! Error: {}", error)))
+    }
+
+    pub async fn run_axum(&self) -> ResultOrError<()> {
+        let app = Router::new().route("/receive", get(get_receive_axum));
+        let ip_address = self.find_public_ip()?;
+        self.print_qr_code(&ip_address)?;
+        let address = format!("{}:{}", ip_address, self.port).parse()?;
+        Ok(axum::Server::bind(&address).serve(app.into_make_service()).await?)
     }
 }
 

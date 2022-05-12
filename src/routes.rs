@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str;
 
+use axum::response::IntoResponse;
 use rocket::http::ContentType;
 use rocket::response::content::{Css, Html, Plain};
 use rocket::response::{Redirect, Responder, Result as RocketResult};
@@ -136,6 +137,10 @@ pub fn post_receive(content_type: &ContentType, data: Data, state: State<Request
             Redirect::found("/error")
         }
     }
+}
+
+pub(crate) async fn get_receive_axum() -> impl IntoResponse {
+    POST_HTML.to_string()
 }
 
 /// Serve GET /receive URL where the user can input files and text to receive.

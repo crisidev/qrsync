@@ -69,7 +69,7 @@ fn register_signal_handlers() -> ResultOrError<()> {
 }
 
 /// Parse command line flags, configure logging, register signal handlers and run QrSync.
-fn run() -> ResultOrError<()> {
+async fn run() -> ResultOrError<()> {
     let opts = Opts::parse();
     setup_tracing();
     tracing::debug!("Command line options are {:#?}", opts);
@@ -87,13 +87,14 @@ fn run() -> ResultOrError<()> {
         opts.light_term,
         opts.ipv6,
     );
-    http.run()?;
+    http.run_axum().await?;
     Ok(())
 }
 
 /// The main!
-fn main() -> ! {
-    match run() {
+#[tokio::main]
+async fn main() -> ! {
+    match run().await {
         Ok(_) => {
             tracing::info!("QrSync run successfully");
             process::exit(0);
