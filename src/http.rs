@@ -121,25 +121,24 @@ impl QrSyncHttp {
     /// Generates the QR code based on the mode QrSync is started, giving the user a different URL
     /// in case we are expecting the mobile device to send to receive the file.
     fn generate_qr_code_url(&self, ip_address: String) -> ResultOrError<String> {
-        let url: String;
-        if self.filename.is_some() {
+        let url = if self.filename.is_some() {
             let filename = self.filename.as_ref().unwrap();
             info!(
                 "Send mode enabled for file {}",
                 fs::canonicalize(filename)?.display()
             );
-            url = format!(
+            format!(
                 "http://{}:{}/{}",
                 ip_address,
                 self.port,
                 base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
-            );
+            )
         } else {
             info!(
                 "Receive mode enabled inside directory {}",
                 fs::canonicalize(&self.root_dir)?.display()
             );
-            url = format!("http://{}:{}/receive", ip_address, self.port);
+            format!("http://{}:{}/receive", ip_address, self.port)
         };
         info!(
             "Scan this QR code with a QR code reader app to open the URL {}",

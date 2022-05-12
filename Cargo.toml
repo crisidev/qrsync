@@ -10,23 +10,23 @@ repository = "https://github.com/crisidev/qrsync"
 license = "MIT"
 keywords = ["qrcode", "terminal", "rocket", "mobile"]
 categories = ["command-line-utilities", "multimedia"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 base64 = "0"
 ctrlc = { version = "3", features = ["termination"] }
-clap = "~3.0.0-beta.4"
+clap = { version = "3", features = ["derive"] }
 log = "0.4"
-pnet = "0.28"
+pnet = "0.29"
 pretty_env_logger = "0.4"
-qr2term = "0.2"
+qr2term = "0.3"
 rocket = "0.4.10"
 rocket_contrib = "0.4.10"
 rocket-download-response = "0.4"
 rocket-multipart-form-data = "0.8"
 
 [dev-dependencies]
-pretty_assertions = "0.6"
+pretty_assertions = "1.2"
 
 [[bin]]
 name = "qrsync"

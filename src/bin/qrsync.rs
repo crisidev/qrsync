@@ -1,20 +1,18 @@
-extern crate clap;
 #[macro_use]
 extern crate log;
-extern crate qrsync;
 
 use std::env;
 use std::path::Path;
 use std::process;
 
-use clap::Clap;
+use clap::Parser;
 use log::LevelFilter;
 use qrsync::http::QrSyncHttp;
 use qrsync::ResultOrError;
 
 /// Clap derived command line options.
-#[derive(Clap, Debug)]
-#[clap(author, about, version)]
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
 struct Opts {
     /// File to be send to the mobile device.
     filename: Option<String>,
