@@ -1,6 +1,6 @@
 [package]
 name = "qrsync"
-version = "0.1.8"
+version = "0.2.0"
 edition = "2021"
 authors = ["Matteo Bigoi <bigo@crisidev.org>"]
 description = "Utility to copy files over WiFi to/from mobile devices inside a terminal."
