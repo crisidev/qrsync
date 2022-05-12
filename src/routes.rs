@@ -4,9 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::str;
 
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Html};
 use rocket::http::ContentType;
-use rocket::response::content::{Css, Html, Plain};
+use rocket::response::content::{Css, Html as RocketHtml, Plain};
 use rocket::response::{Redirect, Responder, Result as RocketResult};
 use rocket::{Data, Request, State};
 use rocket_download_response::DownloadResponse;
@@ -139,25 +139,18 @@ pub fn post_receive(content_type: &ContentType, data: Data, state: State<Request
     }
 }
 
-pub(crate) async fn get_receive_axum() -> impl IntoResponse {
-    POST_HTML.to_string()
-}
-
 /// Serve GET /receive URL where the user can input files and text to receive.
-#[get("/receive")]
-pub fn get_receive(_state: State<RequestCtx>) -> Html<String> {
+pub(crate) async fn get_receive() -> impl IntoResponse {
     Html(POST_HTML.to_string())
 }
 
 /// Serve GET /done URL where we redirect upon success.
-#[get("/receive_done")]
-pub fn get_done(_state: State<RequestCtx>) -> Html<String> {
+pub(crate) async fn get_receive_done() -> impl IntoResponse {
     Html(DONE_HTML.to_string())
 }
 
 /// Serve GET /error URL where we redirect upon errors,
-#[get("/error")]
-pub fn get_error(_state: State<RequestCtx>) -> Html<String> {
+pub(crate) async fn get_error() -> impl IntoResponse {
     Html(ERROR_HTML.to_string())
 }
 

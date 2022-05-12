@@ -15,11 +15,10 @@ use rocket::Catcher;
 
 use crate::error::QrSyncError;
 use crate::routes::{
-    bad_request, get_receive_axum, static_rocket_route_info_for_get_done, static_rocket_route_info_for_get_error,
-    static_rocket_route_info_for_get_receive, static_rocket_route_info_for_get_send,
-    static_rocket_route_info_for_post_receive, static_rocket_route_info_for_slash,
-    static_rocket_route_info_for_static_bootstrap_css, static_rocket_route_info_for_static_bootstrap_css_map,
-    static_rocket_route_info_for_static_favicon, RequestCtx,
+    bad_request, get_error, get_receive, get_receive_done,
+    static_rocket_route_info_for_get_send, static_rocket_route_info_for_post_receive,
+    static_rocket_route_info_for_slash, static_rocket_route_info_for_static_bootstrap_css,
+    static_rocket_route_info_for_static_bootstrap_css_map, static_rocket_route_info_for_static_favicon, RequestCtx,
 };
 use crate::ResultOrError;
 
@@ -185,10 +184,7 @@ impl QrSyncHttp {
                 "/",
                 routes![
                     slash,
-                    get_error,
                     get_send,
-                    get_receive,
-                    get_done,
                     post_receive,
                     static_bootstrap_css,
                     static_bootstrap_css_map,
@@ -203,7 +199,10 @@ impl QrSyncHttp {
     }
 
     pub async fn run_axum(&self) -> ResultOrError<()> {
-        let app = Router::new().route("/receive", get(get_receive_axum));
+        let app = Router::new()
+            .route("/receive", get(get_receive))
+            .route("/receive_done", get(get_receive_done))
+            .route("/error", get(get_error));
         let ip_address = self.find_public_ip()?;
         self.print_qr_code(&ip_address)?;
         let address = format!("{}:{}", ip_address, self.port).parse()?;
@@ -258,7 +257,7 @@ mod test {
             false,
             false,
         );
-        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        let url = http.generate_qr_code_url(ip_address).unwrap();
         assert_eq!(
             format!(
                 "http://{}:12345/{}",
@@ -281,7 +280,7 @@ mod test {
             false,
             false,
         );
-        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        let url = http.generate_qr_code_url(ip_address).unwrap();
         assert_eq!(format!("http://{}:12345/receive", ip_address,), url);
     }
 
@@ -297,7 +296,7 @@ mod test {
             false,
             false,
         );
-        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        let url = http.generate_qr_code_url(ip_address).unwrap();
         let qr = http.generate_qr_code_matrix(&url).unwrap();
         assert_eq!(qr.pixels().len(), 1089);
         let light_pixels = qr.pixels().iter().filter(|&n| *n == QrLight).count();
@@ -318,7 +317,7 @@ mod test {
             true,
             false,
         );
-        let url = http.generate_qr_code_url(ip_address.to_string()).unwrap();
+        let url = http.generate_qr_code_url(ip_address).unwrap();
         let qr = http.generate_qr_code_matrix(&url).unwrap();
         assert_eq!(qr.pixels().len(), 1089);
         let light_pixels = qr.pixels().iter().filter(|&n| *n == QrLight).count();
@@ -355,6 +354,6 @@ mod test {
             false,
             false,
         );
-        assert_eq!(http.print_qr_code(ip_address.to_string()).is_ok(), true);
+        assert_eq!(http.print_qr_code(ip_address).is_ok(), true);
     }
 }
