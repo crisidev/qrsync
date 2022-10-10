@@ -15,7 +15,7 @@ categories = ["command-line-utilities", "multimedia"]
 
 [dependencies]
 axum = { version = "0.5", features = ["multipart"] }
-base64 = "0"
+base64 = "0.13"
 ctrlc = { version = "3", features = ["termination"] }
 clap = { version = "3", features = ["derive"] }
 hyper = "0.14"
