@@ -100,9 +100,8 @@ impl QrSyncHttp {
     fn find_public_ip(&self) -> QrSyncResult<String> {
         match &self.ip_address {
             Some(ip_address) => Ok(ip_address.to_string()),
-            None => Err(QrSyncError::new(
-                "On windows the command-line option --ip-address is mandatory",
-                Some("ip-discovery"),
+            None => Err(QrSyncError::Error(
+                "On windows the command-line option --ip-address is mandatory".into()
             )),
         }
     }
