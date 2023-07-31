@@ -101,7 +101,7 @@ impl QrSyncHttp {
         match &self.ip_address {
             Some(ip_address) => Ok(ip_address.to_string()),
             None => Err(QrSyncError::Error(
-                "On windows the command-line option --ip-address is mandatory".into()
+                "On windows the command-line option --ip-address is mandatory".into(),
             )),
         }
     }
