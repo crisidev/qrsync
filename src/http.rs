@@ -12,8 +12,8 @@ use pnet::datalink;
 use qr2term::matrix::Matrix;
 use qr2term::qr::Qr;
 use qr2term::render::{Color, QrDark, QrLight, Renderer};
-use tower_http::limit::RequestBodyLimitLayer;
 use tower::ServiceBuilder;
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::routes::*;
