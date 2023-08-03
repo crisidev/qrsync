@@ -5,9 +5,10 @@ use std::str;
 use std::sync::Arc;
 
 use axum::body::{Bytes, Full};
-use axum::extract::{ContentLengthLimit, Extension, Multipart, Path as AxumPath};
+use axum::extract::{Extension, Multipart, Path as AxumPath};
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
+use base64::{engine::general_purpose, Engine as _};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -37,7 +38,7 @@ impl State {
     async fn download_file(&self, file_name: &str) -> QrSyncResult<Vec<u8>> {
         match self.file_name.as_ref() {
             Some(stored_filename) => {
-                let encoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)?;
+                let encoded_file_name = general_purpose::URL_SAFE_NO_PAD.decode(&file_name)?;
                 let decoded_file_name = str::from_utf8(&encoded_file_name)?;
                 if stored_filename == decoded_file_name {
                     let file_path = self.root_dir.join(stored_filename);
@@ -81,7 +82,8 @@ impl State {
 pub(crate) async fn get_send(AxumPath(file_name): AxumPath<String>, state: Extension<Arc<State>>) -> impl IntoResponse {
     match state.download_file(&file_name).await {
         Ok(data) => {
-            let decoded_file_name = base64::decode_config(&file_name, base64::URL_SAFE_NO_PAD)
+            let decoded_file_name = general_purpose::URL_SAFE_NO_PAD
+                .decode(&file_name)
                 .map_err(|e| {
                     let e: QrSyncError = e.into();
                     e.into_response()
@@ -108,15 +110,7 @@ pub(crate) async fn get_send(AxumPath(file_name): AxumPath<String>, state: Exten
 
 /// Serve POST /receive URL parsing the multipart form. This way multiple files with different
 /// names can be received in a single session.
-pub(crate) async fn post_receive(
-    ContentLengthLimit(mut multipart): ContentLengthLimit<
-        Multipart,
-        {
-            250 * 1024 * 1024 * 1024 /* 250gb */
-        },
-    >,
-    state: Extension<Arc<State>>,
-) -> impl IntoResponse {
+pub(crate) async fn post_receive(state: Extension<Arc<State>>, mut multipart: Multipart) -> impl IntoResponse {
     while let Some(field) = multipart
         .next_field()
         .await
