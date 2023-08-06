@@ -78,7 +78,7 @@ FLAGS:
     -h, --help            Prints help information
     -6, --ipv6            Prefer IPv6 over IPv4
     -l, --light-term      Draw QR in a terminal with light background
-    -V, --version         Prints version information
+    -v, --version         Prints version information
 
 OPTIONS:
     -i, --ip-address <ip-address>    IP address to bind the HTTP server to. Default to primary interface
