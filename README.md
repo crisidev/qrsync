@@ -92,7 +92,6 @@ and "stole" most of the HTML Bootstrap based UI.
 * [axum](https://github.com/tokio-rs/axum/): A great HTTP framework for Rust, very expandable and simple to
 use.
 * [qr2term](https://docs.rs/qr2term/): Terminal based QR rendering library.
-* [clap](https://clap.rs/): Oh man, where do I start telling how much do I love Clap?
 
 ### License
 See [LICENSE](https://github.com/crisidev/qrsync/blob/master/LICENSE) file.
