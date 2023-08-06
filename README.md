@@ -1,6 +1,6 @@
 ## QrSync
-[![Release](https://img.shields.io/github/workflow/status/crisidev/qrsync/release?style=for-the-badge)](https://github.com/crisidev/qrsync/actions?query=workflow%3Arelease)
-[![Ci](https://img.shields.io/github/workflow/status/crisidev/qrsync/ci?style=for-the-badge)](https://github.com/crisidev/qrsync/actions?query=workflow%3Aci)
+[![Release](https://img.shields.io/github/actions/workflow/status/crisidev/qrsync/release.yml?style=for-the-badge)](https://github.com/crisidev/qrsync/actions?query=workflow%3Arelease)
+[![Ci](https://img.shields.io/github/actions/workflow/status/crisidev/qrsync/build_and_test.yml?style=for-the-badge)](https://github.com/crisidev/qrsync/actions?query=workflow%3Aci)
 [![Crates.io](https://img.shields.io/crates/v/qrsync?style=for-the-badge)](https://crates.io/crates/qrsync)
 [![Docs.rs](https://img.shields.io/badge/docs.rs-rustdoc-green?style=for-the-badge)](https://docs.rs/crate/qrsync)
 [![Crates.io](https://img.shields.io/crates/d/qrsync?style=for-the-badge)](https://crates.io/crates/qrsync)
