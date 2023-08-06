@@ -720,7 +720,7 @@ dependencies = [
 
 [[package]]
 name = "qrsync"
-version = "0.3.0-dev"
+version = "0.3.0"
 dependencies = [
  "argh",
  "axum",

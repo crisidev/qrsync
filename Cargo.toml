@@ -1,10 +1,10 @@
 [package]
 name = "qrsync"
-version = "0.3.0-dev"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.60"
 authors = ["Matteo Bigoi <bigo@crisidev.org>"]
-description = "Utility to copy files over WiFi to/from mobile devices inside a terminal."
+description = "Utility to copy files over WiFi to/from mobile devices inside a terminal using QR codes."
 documentation = "https://docs.rs/qrsync"
 readme = "README.md"
 homepage = "https://github.com/crisidev/qrsync"
