@@ -4,15 +4,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::handler::Handler;
 use axum::routing::{get, post};
-use axum::{Extension, Router};
+use axum::{extract::DefaultBodyLimit, Extension, Router};
+use base64::{engine::general_purpose, Engine as _};
 #[cfg(target_family = "unix")]
 use pnet::datalink;
 use qr2term::matrix::Matrix;
 use qr2term::qr::Qr;
 use qr2term::render::{Color, QrDark, QrLight, Renderer};
 use tower::ServiceBuilder;
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::routes::*;
@@ -116,7 +117,7 @@ impl QrSyncHttp {
                     "http://{}:{}/{}",
                     ip_address,
                     self.port,
-                    base64::encode_config(filename, base64::URL_SAFE_NO_PAD)
+                    general_purpose::URL_SAFE_NO_PAD.encode(filename)
                 )
             }
             None => {
@@ -162,7 +163,9 @@ impl QrSyncHttp {
             .route("/favicon.ico", get(static_favicon))
             .route("/:file_name", get(get_send))
             .route("/receive", post(post_receive))
-            .fallback(bad_request.into_service());
+            .layer(DefaultBodyLimit::disable())
+            .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024 * 1024 /* 250Gb */))
+            .fallback(bad_request);
         let state = Arc::new(State::new(self.filename.clone(), &self.root_dir));
         let app = app.layer(
             ServiceBuilder::new()
@@ -230,7 +233,7 @@ mod test {
             format!(
                 "http://{}:12345/{}",
                 ip_address,
-                base64::encode_config(file_name, base64::URL_SAFE_NO_PAD)
+                general_purpose::URL_SAFE_NO_PAD.encode(file_name)
             ),
             url
         );
