@@ -5,7 +5,7 @@ use std::str;
 use std::sync::Arc;
 
 use axum::body::{Bytes, Full};
-use axum::extract::{Extension, Multipart, Path as AxumPath};
+use axum::extract::{Multipart, Path as AxumPath, State};
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use base64::{engine::general_purpose, Engine as _};
@@ -22,14 +22,14 @@ const BOOTSTRAP_CSS: &str = include_str!("templates/bootstrap.min.css");
 const BOOTSTRAP_CSS_MAP: &str = include_str!("templates/bootstrap.min.css.map");
 
 /// Request context structure, passed between Axum handlers to share state.
-pub(crate) struct State {
+pub(crate) struct QrSyncState {
     file_name: Option<String>,
     root_dir: PathBuf,
 }
 
-impl State {
+impl QrSyncState {
     pub(crate) fn new(file_name: Option<String>, root_dir: &Path) -> Self {
-        State {
+        QrSyncState {
             file_name,
             root_dir: root_dir.to_path_buf(),
         }
@@ -38,7 +38,7 @@ impl State {
     async fn download_file(&self, file_name: &str) -> QrSyncResult<Vec<u8>> {
         match self.file_name.as_ref() {
             Some(stored_filename) => {
-                let encoded_file_name = general_purpose::URL_SAFE_NO_PAD.decode(&file_name)?;
+                let encoded_file_name = general_purpose::URL_SAFE_NO_PAD.decode(file_name)?;
                 let decoded_file_name = str::from_utf8(&encoded_file_name)?;
                 if stored_filename == decoded_file_name {
                     let file_path = self.root_dir.join(stored_filename);
@@ -79,7 +79,10 @@ impl State {
     }
 }
 
-pub(crate) async fn get_send(AxumPath(file_name): AxumPath<String>, state: Extension<Arc<State>>) -> impl IntoResponse {
+pub(crate) async fn get_send(
+    AxumPath(file_name): AxumPath<String>,
+    State(state): State<Arc<QrSyncState>>,
+) -> impl IntoResponse {
     match state.download_file(&file_name).await {
         Ok(data) => {
             let decoded_file_name = general_purpose::URL_SAFE_NO_PAD
@@ -110,7 +113,7 @@ pub(crate) async fn get_send(AxumPath(file_name): AxumPath<String>, state: Exten
 
 /// Serve POST /receive URL parsing the multipart form. This way multiple files with different
 /// names can be received in a single session.
-pub(crate) async fn post_receive(state: Extension<Arc<State>>, mut multipart: Multipart) -> impl IntoResponse {
+pub(crate) async fn post_receive(State(state): State<Arc<QrSyncState>>, mut multipart: Multipart) -> impl IntoResponse {
     while let Some(field) = multipart
         .next_field()
         .await

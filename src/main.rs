@@ -2,55 +2,49 @@ use std::env;
 use std::path::Path;
 use std::process;
 
-use clap::Parser;
+use argh::FromArgs;
 use qrsync::{QrSyncHttp, QrSyncResult};
-use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Clap derived command line options.
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+/// qrsync - copy files over WiFI using QR codes.
+#[derive(FromArgs, Debug)]
 struct Opts {
-    /// File to be send to the mobile device.
+    /// file to be send to the mobile device.
+    #[argh(positional)]
     filename: Option<String>,
-    /// Root directory to store files in receive mode.
-    #[clap(short = 'r', long = "root-dir")]
+    /// root directory to store files in receive mode.
+    #[argh(option, short = 'r')]
     root_dir: Option<String>,
-    /// Enable QrSync debug.
-    #[clap(short = 'd', long = "debug")]
+    /// enable QrSync debug.
+    #[argh(switch, short = 'd')]
     debug: bool,
-    /// Port to bind the HTTP server to.
-    #[clap(short = 'p', long = "port", default_value = "5566")]
+    /// port to bind the HTTP server to.
+    #[argh(option, short = 'p', default = "5566")]
     port: u16,
-    /// IP address to bind the HTTP server to. Default to primary interface.
-    #[clap(short = 'i', long = "ip-address")]
+    /// ip address to bind the HTTP server to. Default to primary interface.
+    #[argh(option, short = 'i')]
     ip_address: Option<String>,
-    /// Draw QR in a terminal with light background.
-    #[clap(short = 'l', long = "light-term")]
+    /// draw QR in a terminal with light background.
+    #[argh(switch, short = 'l')]
     light_term: bool,
-    /// Prefer IPv6 over IPv4.
-    #[clap(short = '6', long = "ipv6")]
+    /// prefer IPv6 over IPv4.
+    #[argh(switch, short = '6')]
     ipv6: bool,
+    /// show version info.
+    #[argh(switch, short = 'v')]
+    version: bool,
 }
 
 /// Setup `tracing::subscriber` to read the log level from RUST_LOG environment variable.
-fn setup_tracing() {
-    let format = tracing_subscriber::fmt::layer()
-        .with_ansi(true)
-        .with_line_number(true)
-        .with_level(true)
-        .without_time();
-    match EnvFilter::try_from_default_env() {
-        Ok(filter) => {
-            tracing_subscriber::registry().with(format).with(filter).init();
-        }
-        Err(_) => {
-            tracing_subscriber::registry()
-                .with(format)
-                .with(LevelFilter::INFO)
-                .init();
-        }
-    }
+fn setup_tracing(debug: bool) {
+    let level = if debug { "debug" } else { "info" };
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| format!("qrsync={level},tower_http={level},axum::rejection=trace").into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 }
 
 /// Register signal handlers for SIGTERM, SIGINT and SIGQUIT
@@ -64,8 +58,12 @@ fn register_signal_handlers() -> QrSyncResult<()> {
 
 /// Parse command line flags, configure logging, register signal handlers and run QrSync.
 async fn run() -> QrSyncResult<()> {
-    let opts = Opts::parse();
-    setup_tracing();
+    let opts: Opts = argh::from_env();
+    if opts.version {
+        println!("qrsync v{} - {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
+        process::exit(0)
+    }
+    setup_tracing(opts.debug);
     tracing::debug!("Command line options are {:#?}", opts);
     register_signal_handlers()?;
     let root_dir = match opts.root_dir {

@@ -13,6 +13,8 @@ use hyper::Error as HyperError;
 use qr2term::QrError;
 use thiserror::Error;
 
+const ERROR_HTML: &str = include_str!("templates/error-custom.html");
+
 /// Generic QrSync error structure, implementing all error types coming from dependencies.
 #[derive(Error, Debug)]
 pub enum QrSyncError {
@@ -47,7 +49,7 @@ pub enum QrSyncError {
 
 impl IntoResponse for QrSyncError {
     fn into_response(self) -> Response {
-        let body = self.to_string();
+        let body = ERROR_HTML.replace("###ERRORMESSAGE###", &self.to_string());
         (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
     }
 }

@@ -5,16 +5,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::routing::{get, post};
-use axum::{extract::DefaultBodyLimit, Extension, Router};
+use axum::{extract::DefaultBodyLimit, Router};
 use base64::{engine::general_purpose, Engine as _};
 #[cfg(target_family = "unix")]
 use pnet::datalink;
 use qr2term::matrix::Matrix;
 use qr2term::qr::Qr;
 use qr2term::render::{Color, QrDark, QrLight, Renderer};
-use tower::ServiceBuilder;
 use tower_http::limit::RequestBodyLimitLayer;
-use tower_http::trace::TraceLayer;
 
 use crate::routes::*;
 use crate::{QrSyncError, QrSyncResult};
@@ -83,7 +81,7 @@ impl QrSyncHttp {
                     Ok(ip_address.to_string())
                 } else {
                     Err(QrSyncError::Error(
-                        "Unable to find a valid IP address to bind with. See --ip-address option to specify the IP address to use".into() 
+                        "Unable to find a valid IP address to bind with. See --ip-address option to specify the IP address to use".into()
                     ))
                 }
             }
@@ -153,6 +151,7 @@ impl QrSyncHttp {
 
     /// Configure Axum, print the QR code and run the HTTP worker.
     pub async fn run(&self) -> QrSyncResult<()> {
+        let state = Arc::new(QrSyncState::new(self.filename.clone(), &self.root_dir));
         let app = Router::new()
             .route("/", get(slash))
             .route("/receive", get(get_receive))
@@ -163,22 +162,15 @@ impl QrSyncHttp {
             .route("/favicon.ico", get(static_favicon))
             .route("/:file_name", get(get_send))
             .route("/receive", post(post_receive))
+            .fallback(bad_request)
+            .with_state(state)
             .layer(DefaultBodyLimit::disable())
-            .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024 * 1024 /* 250Gb */))
-            .fallback(bad_request);
-        let state = Arc::new(State::new(self.filename.clone(), &self.root_dir));
-        let app = app.layer(
-            ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(Extension(state)),
-        );
+            .layer(RequestBodyLimitLayer::new(250 * 1024 * 1024 * 1024 /* 250Gb */));
         let ip_address = self.find_public_ip()?;
         self.print_qr_code(&ip_address)?;
         let address = format!("{}:{}", ip_address, self.port).parse()?;
-        let server = hyper::Server::bind(&address).serve(app.into_make_service());
-
-        if let Err(err) = server.await {
-            tracing::error!("Server error: {}", err);
+        if let Err(e) = axum::Server::bind(&address).serve(app.into_make_service()).await {
+            tracing::error!("Server error: {e}");
         }
         Ok(())
     }
